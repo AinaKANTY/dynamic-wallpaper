@@ -27,8 +27,8 @@ If you use another environment, please report your experience by opening an issu
 
 Install these programs before using `dwall`:
 - **`systemd`** or **`cronie`**: For the hourly timer (recommended).
-- **`matugen`**: (Optional) For Material You dynamic colors.
-- **`pywal`**: (Optional) For dynamic color schemes.
+- **`matugen`**: For Material You dynamic colors (optional).
+- **`pywal`**: For dynamic color schemes (optional).
 
 ### Installation
 
@@ -180,5 +180,5 @@ $ for file in *.heic; do heif-convert $file ${file/%.heic/.jpg}; done
 
 ### Credits
 - **Original Author**: [Aditya Shakya (@adi1090x)](https://github.com/adi1090x).
-- **Optimization**: Forked for modern Hyprland/Wayland sessions by [Aina KANTY (@ainaKANTY)](https://github.com/AinaKANTY).
+- **Optimization**: Forked for modern sessions by [Aina KANTY (@ainaKANTY)](https://github.com/AinaKANTY).
 - **License**: Distributed under the **GPL-3.0 License**.
