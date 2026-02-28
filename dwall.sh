@@ -6,7 +6,7 @@
 ## Twitter : @adi1090x
 
 ## Dynamic Wallpaper : Set wallpapers according to current time.
-## Created to work better with job schedulers (cron)
+## Created to work better with job schedulers
 
 ## ANSI Colors (FG & BG)
 RED="$(printf '\033[31m')"        GREEN="$(printf '\033[32m')"
@@ -48,7 +48,7 @@ trap exit_on_signal_SIGTERM SIGTERM
 
 ## Prerequisite
 Prerequisite() { 
-    dependencies=(swww systemd)
+    dependencies=($SETTER)
     for dependency in "${dependencies[@]}"; do
         type -p "$dependency" &>/dev/null || {
             echo -e ${RED}"[!] ERROR: Could not find ${GREEN}'${dependency}'${RED}, is it installed?" >&2
@@ -90,40 +90,30 @@ usage() {
 	EOF
 }
 
-## Set wallpaper in hyprland
-set_hyprland() {
-    if [[ ! -f "$1" ]]; then
-        echo "Error: Image not found at $1"
-        return 1
-    fi
-
-    if ! swww query >/dev/null 2>&1; then
-        swww init
-        sleep 0.5 # Petit délai pour laisser le temps au démon de s'initialiser
-    fi
-
-    # 3. Apply the wallpaper
-    swww img "$1" \
-        --transition-type outer \
-        --transition-step 20 \
-        --transition-fps 60
-}
-
 ## Choose wallpaper setter
-## Choose wallpaper setter
-if [[ -n "$HYPRLAND_INSTANCE_SIGNATURE" || "$XDG_CURRENT_DESKTOP" == "Hyprland" ]]; then
-    SETTER=set_hyprland
-elif [[ "$XDG_SESSION_TYPE" == "wayland" ]]; then
-    if command -v swww >/dev/null 2>&1; then
-        SETTER=set_hyprland
+detect_environmement() {
+    if [[ "$XDG_SESSION_TYPE" == "wayland" ]]; then
+        if [[ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]]; then
+            ENV="hyprland"
+        elif [[ -n "$SWAYSOCK" ]]; then
+            ENV="sway"
+        else
+            ENV="wayland-uknow"
+        fi
+        
+    elif [[ "$XDG_SESSION_TYPE" == "x11" ]]; then
+        case "$XDG_CURRENT_DESKTOP" in
+            GNOME)  ENV="gnome";;
+            KDE)    ENV="kde";;
+            XFCE)   ENV="xfce";;
+            *)      ENV="x11-uknow";;
+        esac
     else
-        echo -e "${RED}[!] Error: 'swww' is required for Wayland.${NC}"
-        exit 1
+        echo -e "${RED}[!] Error: Environment not supported at this time${WHITE}"; exit 1
     fi
-else
-    echo -e "${RED}[!] Error: This fork is optimized for Wayland/Hyprland only.${NC}"
-    exit 1
-fi
+    
+    echo -e "${ORANGE}[*] Detected environment: ${MAGENTA}${ENV}${WHITE}"
+}
 
 ## Display Info
 display_info() {
@@ -131,7 +121,7 @@ display_info() {
     [[ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]] && session_name="Hyprland"
 
     echo -e "${ORANGE}[*] Setting wallpaper in ${GREEN}${session_name}${ORANGE} session"
-    echo -e "${ORANGE}[*] Using setter : ${MAGENTA}${SETTER}${NC}"
+    echo -e "${ORANGE}[*] Using setter : ${MAGENTA}${SETTER}${WHITE}"
 }
 
 ## Get Image
@@ -142,55 +132,90 @@ get_img() {
     if [[ -f "$found_file" ]]; then
         image="$found_file"
     else
-        echo -e "${RED}[!] Error: No image found for '$1' in $DIR/$STYLE/ (checked .png, .jpg, .webp, .gif)${NC}"
+        echo -e "${RED}[!] Error: No image found for '$1' in $DIR/$STYLE/ (checked .png, .jpg, .webp, .gif)${WHITE}"
         exit 1
     fi
 }
 
-## Set wallpaper with matugen or pywal
-setter() {
-    get_img "$1"
+# TODO: mettre en valeur les messages
+choose_setter() {
+    case "$ENV" in
+        hyprland)
+            if command -v swww >/dev/null 2>&1; then
+                    SETTER="swww"
+                elif command -v hyprpaper >/dev/null 2>&1; then
+                    SETTER="hyprpaper"
+                elif command -v swaybg >/dev/null 2>&1; then
+                    SETTER="swaybg"
+                else
+                    echo "[!] No setters found for Hyprland"; exit 1
+                fi
+                ;;
+        sway)
+            if command -v swaybg >/dev/null 2>&1; then
+                SETTER="swaybg"
+            else
+                echo "[!] No setters found for sway"; exit 1
+            fi
+            ;;
+        gnome)      SETTER="gnome-settings-daemon";;
+        kde)        SETTER="plasma-workspace";;
+        xfce)       SETTER="xfdesktop";;
+        *)          echo "[!] Unsupported environment: $ENV"; exit 1 ;;
+    esac
+}
+
+apply_colors() {
+    local image="$1"
+
     if command -v matugen >/dev/null 2>&1; then
-            echo -e "${GREEN}[+] Generating colors with Matugen...${NC}"
-            matugen image "$image" >/dev/null 2>&1
+        matugen image "$image"
     elif command -v wal >/dev/null 2>&1; then
-        wal -i "$image" -n >/dev/null 2>&1
-    else
-        echo -e "${YELLOW}[!] Warning: Neither 'matugen' nor 'pywal' is installed.${NC}"
-        echo -e "${YELLOW}[!] Colors will not be updated.${NC}"
-    fi
-                
-    if command -v "$SETTER" >/dev/null 2>&1; then
-           $SETTER "$image"
-    else
-           echo -e "${RED}[!] Error: Wallpaper setter '$SETTER' not found.${NC}"
-           exit 1
+        wal -i "$image" -n
     fi
 }
 
 ## Wallpaper Setter
-set_wallpaper() {
-    local cfile="$HOME/.cache/dwall_current"
-    get_img "$1"
-    if [[ -n "$image" ]]; then
-        $SETTER "$image"
-    else
-        echo -e "${RED}[!] Error: Could not resolve image path for '$1'${NC}"
-        exit 1
-    fi
+apply_wallpaper() {
+    local image="$1"
 
-    echo "$image" > "$cfile"
+    case "$SETTER" in
+        hyprpaper)
+            hyprctl hyprpaper preload "$image"
+            hyprctl hyprpaper wallpaper ",$image"
+            ;;
+        swww)
+            if ! swww query >/dev/null 2>&1; then
+                swww init && sleep 0.5
+            fi
+            swww img "$image"
+            ;;
+        swaybg)
+            swaybg -i "$image" -m fill
+            ;;
+        gnome)
+            gsettings set org.gnome.desktop.background picture-uri "file://$image"
+            gsettings set org.gnome.desktop.background picture-uri-dark "file://$image"
+            ;;
+        kde)
+            plasma-apply-wallpaperimage "$image"
+            ;;
+        xfce)
+            xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/workspace0/last-image -s "$image"
+            ;;
+    esac
+    
+    apply_colors "$image"
 }
 
 ## Check valid style
 check_style() {
-    display_info
     if [[ -d "$DIR/$1" ]]; then
-        echo -e "${BLUE}[*] Using style : ${MAGENTA}$1${NC}"
+        echo -e "${BLUE}[*] Using style : ${MAGENTA}$1${WHITE}"
         STYLE="$1"
     else
-        echo -e "${RED}[!] Invalid style name : ${GREEN}$1${NC}"
-        echo -e "${RED}[!] Available styles are : ${YELLOW}$(ls -m "$DIR")${NC}"
+        echo -e "${RED}[!] Invalid style name : ${GREEN}$1${WHITE}"
+        echo -e "${RED}[!] Available styles are : ${YELLOW}$(ls -m "$DIR")${WHITE}"
         exit 1
     fi
 }
@@ -198,11 +223,8 @@ check_style() {
 ## Main
 main() {
     local h=$((10#$(date +%H)))
-    if [[ -n "$PYWAL" ]]; then
-        pywal_set "$h"
-    else
-        set_wallpaper "$h"
-    fi
+    get_img "$h"
+    apply_wallpaper "$image"
     reset_color
     exit 0
 }
@@ -219,7 +241,11 @@ done
 
 ## Run
 if [[ "$STYLE" ]]; then
+    detect_environmement
+    choose_setter
     check_style "$STYLE"
+    display_info
+    Prerequisite
     main
 else
     usage

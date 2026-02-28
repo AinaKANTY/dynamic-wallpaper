@@ -6,34 +6,102 @@
   <img src="https://img.shields.io/github/license/Philippien-AT99/dynamic-wallpaper?style=for-the-badge">
   <img src="https://img.shields.io/github/stars/Philippien-AT99/dynamic-wallpaper?style=for-the-badge">
 </p>
-<p align="center">A simple <code>bash</code> script to set wallpapers according to current time, optimized for <b>Hyprland & Wayland</b>.</p>
 
-> [!NOTE]
-> Matugen support is experimental as I don't use it personally. Feel free to open an issue if it behaves unexpectedly!
+<p align="center">A simple <code>bash</code> script to set wallpapers according to current time, supporting multiple desktop environments and window managers.</p>
+
+## Testing
+This script has been tested on **Hyprland/Arch**. 
+If you use another environment, please report your experience by opening an issue.
 
 ![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/main.gif) 
 
 ### Overview
-- **Hyprland Native**: Uses `swww` for smooth, high-performance transitions.
-- **Dynamic Theming**: Automatically generates color schemes using **Matugen** (preferred) or **Pywal**.
+
+- **Wallpaper setter**: Automatically detected based on your environment (`swww`, `hyprpaper`, `swaybg`, `hyprctl`, `gsettings`, `plasma-apply-wallpaperimage`, `xfconf-query`)
+- **Multi-environment**: Automatically detects and supports Hyprland, Sway, GNOME, KDE, XFCE and more.
+- **Dynamic Theming**: Supports **Matugen** and **Pywal** for automatic color scheme generation (optional).
 - **Format Support**: Automatically detects `.jpg`, `.png`, `.webp`, and `.gif`.
-- **Systemd Optimized**: Replaces old Cron jobs with modern Systemd Timers.
+- **Scheduler**: Compatible with **Systemd Timers** and **Cronie**.
 
 ### Dependencies
+
 Install these programs before using `dwall`:
-- **`swww`**: Required for Wayland/Hyprland wallpaper rendering.
-- **`systemd`**: Recommended for the hourly timer.
-- **`matugen`**: (Optional) For modern Material You dynamic colors.
-- **`pywal`**: Optional, for dynamic color schemes.
+- **`systemd`** or **`cronie`**: For the hourly timer (recommended).
+- **`matugen`**: (Optional) For Material You dynamic colors.
+- **`pywal`**: (Optional) For dynamic color schemes.
+
+### Installation
+
+1. **Clone and install**:
 ```bash
-# On Arch Linux
-$ yay -S sww matugen-bin
-# or
-$ yay -S swww pywal
+$ git clone https://github.com/Philippien-AT99/dynamic-wallpaper.git
+$ cd dynamic-wallpaper
+$ chmod +x install.sh
+$ ./install.sh
 ```
 
-**Integration with Hyprland & Matugen**
-To make your window borders and UI match the wallpaper automatically with **Matugen**:
+### Automation (Systemd Timer)
+
+This version uses **Systemd Timers** for better integration with Wayland.
+
+1. **Create the service** (`~/.config/systemd/user/dwall@.service`):
+```ini
+[Unit]
+Description=Dynamic Wallpaper
+
+[Service]
+ExecStart=/usr/bin/dwall -s %i
+```
+
+2. **Create the timer** (`~/.config/systemd/user/dwall.timer`):
+```ini
+[Unit]
+Description=Dynamic Wallpaper Timer
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+3. **Enable**:
+```ini
+systemctl --user enable --now dwall@<style>.timer
+# exemple :
+systemctl --user enable --now dwall@beach.timer
+```
+
+### Previews
+
+|Aurora|Beach|Bitday|Chihuahuan|
+|--|--|--|--|
+|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/aurora.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/beach.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/bitday.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/chihuahuan.gif)|
+
+|Cliffs|Colony|Desert|Earth|
+|--|--|--|--|
+|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/cliffs.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/colony.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/desert.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/earth.gif)|
+
+|Exodus|Factory|Forest|Gradient|
+|--|--|--|--|
+|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/exodus.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/factory.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/forest.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/gradient.gif)|
+
+|Home|Island|Lake|Lakeside|
+|--|--|--|--|
+|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/home.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/island.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/lake.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/lakeside.gif)|
+
+|Market|Mojave|Moon|Mountains|
+|--|--|--|--|
+|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/market.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/mojave.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/moon.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/mountains.gif)|
+
+|Room|Sahara|Street|Tokyo|
+|--|--|--|--|
+|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/room.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/sahara.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/street.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/tokyo.gif)|
+
+ ### Integration with Matugen
+ 
+ To make your window borders and UI match the wallpaper automatically with **Matugen**:
 
 1. **Update your Hyprland config**: Add this line to your `~/.config/hypr/hyprland.conf`:
 ```ini
@@ -53,42 +121,6 @@ general {
     col.active_border = $primary
     col.inactive_border = $surface_variant
 }
-```
-
-### Installation
-1. **Clone and install**:
-```bash
-$ git clone https://github.com/Philippien-AT99/dynamic-wallpaper.git
-$ cd dynamic-wallpaper
-$ chmod +x install.sh
-$ ./install.sh
-```
-
-### Automation (Systemd Timer)
-This version uses **Systemd Timers** for better integration with Wayland.
-
-1. **Create the service** (`~/.config/systemd/user/dwall.service`):
-```ini
-[Service]
-ExecStart=/usr/bin/dwall -s beach
-```
-
-2. **Create the timer** (`~/.config/systemd/user/dwall.timer`):
-```ini
-[Timer]
-OnCalendar=hourly
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-```
-
-3. **Enable**: `systemctl --user enable --now dwall.timer`
-
-#### Autostart on Hyprland
-Add this to your `hyprland.conf`:
-```bash
-exec-once = dwall -s beach
 ```
 
 ### How to add own wallpapers
@@ -132,46 +164,21 @@ $ for file in *.heic; do heif-convert $file ${file/%.heic/.jpg}; done
 
 **`Available Sets`** : `Catalina`, `London`, `Maldives`, `Mojave HD`, `Mount Fuji`, `Seoul`, and more...
 
-### Previews
-
-|Aurora|Beach|Bitday|Chihuahuan|
-|--|--|--|--|
-|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/aurora.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/beach.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/bitday.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/chihuahuan.gif)|
-
-|Cliffs|Colony|Desert|Earth|
-|--|--|--|--|
-|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/cliffs.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/colony.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/desert.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/earth.gif)|
-
-|Exodus|Factory|Forest|Gradient|
-|--|--|--|--|
-|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/exodus.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/factory.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/forest.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/gradient.gif)|
-
-|Home|Island|Lake|Lakeside|
-|--|--|--|--|
-|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/home.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/island.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/lake.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/lakeside.gif)|
-
-|Market|Mojave|Moon|Mountains|
-|--|--|--|--|
-|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/market.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/mojave.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/moon.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/mountains.gif)|
-
-|Room|Sahara|Street|Tokyo|
-|--|--|--|--|
-|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/room.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/sahara.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/street.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/tokyo.gif)|
-
 #### Roadmap (TODO)
+
 **Wayland (Priority)**
 - [x] **Hyprland**
-- [ ] **Sway**
+- [x] **Sway**
 - [ ] **Cosmic Desktop**
 - [ ] **River / Wayfire**
 
 **X11/Mixed**
-- [ ] **XFCE**
-- [ ] **KDE Plasma**
-- [ ] **GNOME**
+- [x] **XFCE**
+- [x] **KDE Plasma**
+- [x] **GNOME**
 - [ ] **LXQt / Cinnamon**
 
 ### Credits
 - **Original Author**: [Aditya Shakya (@adi1090x)](https://github.com/adi1090x).
-- **Optimization**: Forked for modern Hyprland/Wayland sessions by [Aina KANTY (Philippien-AT99)](https://github.com/Philippien-AT99).
+- **Optimization**: Forked for modern Hyprland/Wayland sessions by [Aina KANTY (@ainaKANTY)](https://github.com/AinaKANTY).
 - **License**: Distributed under the **GPL-3.0 License**.
