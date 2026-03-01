@@ -123,7 +123,7 @@ systemctl --user enable --now dwall@beach.timer
 
 ### Integration with Matugen
  
- To make your window borders and UI match the wallpaper automatically with **Matugen**:
+To make your window borders and UI match the wallpaper automatically with **Matugen**:
 
 1. **Update your Hyprland config**: Add this line to your `~/.config/hypr/hyprland.conf`:
 ```ini
@@ -177,9 +177,9 @@ $ cd Downloads/heic_images
 $ for file in *.heic; do heif-convert $file ${file/%.heic/.jpg}; done
 ```
 
-- Now, you have the images, just follow the [above](#How-to-add-own-wallpapers) steps to use these wallpapers with `dwall`.
+- Now, you have the images, just follow the [above](#how-to-add-own-wallpapers) steps to use these wallpapers with `dwall`.
 
-**More Wallpapers :** I've also created a few more wallpaper sets, which are not added to this repository because of their big size. You can download these wallpapers set from here
+**More Wallpapers :** The original author also created additional wallpape sets, which are not added to this repository because of their big size. You can download these wallpapers set from here
 <p align="center">
   <a href="https://github.com/adi1090x/files/tree/master/dynamic-wallpaper/wallpapers"><img alt="undefined" src="https://img.shields.io/badge/Download-Here-blue?style=for-the-badge&logo=github"></a>
 </p>
