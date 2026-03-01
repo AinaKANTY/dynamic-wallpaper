@@ -179,7 +179,7 @@ $ for file in *.heic; do heif-convert $file ${file/%.heic/.jpg}; done
 
 - Now, you have the images, just follow the [above](#how-to-add-own-wallpapers) steps to use these wallpapers with `dwall`.
 
-**More Wallpapers :** The original author also created additional wallpape sets, which are not added to this repository because of their big size. You can download these wallpapers set from here
+**More Wallpapers :** The original author also created additional wallpaper sets, which are not added to this repository because of their big size. You can download these wallpapers set from here
 <p align="center">
   <a href="https://github.com/adi1090x/files/tree/master/dynamic-wallpaper/wallpapers"><img alt="undefined" src="https://img.shields.io/badge/Download-Here-blue?style=for-the-badge&logo=github"></a>
 </p>
