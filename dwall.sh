@@ -90,7 +90,7 @@ usage() {
 	EOF
 }
 
-## Choose wallpaper setter
+## Detect environment
 detect_environmement() {
     if [[ "$XDG_SESSION_TYPE" == "wayland" ]]; then
         if [[ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]]; then
@@ -137,7 +137,7 @@ get_img() {
     fi
 }
 
-# TODO: mettre en valeur les messages
+## Choose wallpaper setter
 choose_setter() {
     case "$ENV" in
         hyprland)
@@ -165,6 +165,7 @@ choose_setter() {
     esac
 }
 
+## Apply colors from image
 apply_colors() {
     local image="$1"
 

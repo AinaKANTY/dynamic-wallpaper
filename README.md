@@ -3,15 +3,12 @@
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/Maintained%3F-Yes-green?style=for-the-badge">
-  <img src="https://img.shields.io/github/license/Philippien-AT99/dynamic-wallpaper?style=for-the-badge">
-  <img src="https://img.shields.io/github/stars/Philippien-AT99/dynamic-wallpaper?style=for-the-badge">
+  <img src="https://img.shields.io/github/license/AinaKANTY/dynamic-wallpaper?style=for-the-badge">
+  <img src="https://img.shields.io/github/stars/AinaKANTY/dynamic-wallpaper?style=for-the-badge">
+  <img src="https://img.shields.io/badge/Fork%20of-adi1090x%2Fdynamic--wallpaper-orange?style=for-the-badge">
 </p>
 
 <p align="center">A simple <code>bash</code> script to set wallpapers according to current time, supporting multiple desktop environments and window managers.</p>
-
-## Testing
-This script has been tested on **Hyprland/Arch**. 
-If you use another environment, please report your experience by opening an issue.
 
 ![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/main.gif) 
 
@@ -22,6 +19,21 @@ If you use another environment, please report your experience by opening an issu
 - **Dynamic Theming**: Supports **Matugen** and **Pywal** for automatic color scheme generation (optional).
 - **Format Support**: Automatically detects `.jpg`, `.png`, `.webp`, and `.gif`.
 - **Scheduler**: Compatible with **Systemd Timers** and **Cronie**.
+- **Testing**: Tested on **Hyprland/Arch**(if you use another environment, please report your experience by opening an issue).
+
+#### Roadmap (TODO)
+
+**Wayland (Priority)**
+- [x] **Hyprland**
+- [x] **Sway**
+- [ ] **Cosmic Desktop**
+- [ ] **River / Wayfire**
+
+**X11/Mixed**
+- [x] **XFCE**
+- [x] **KDE Plasma**
+- [x] **GNOME**
+- [ ] **LXQt / Cinnamon**
 
 ### Dependencies
 
@@ -34,10 +46,20 @@ Install these programs before using `dwall`:
 
 1. **Clone and install**:
 ```bash
-$ git clone https://github.com/Philippien-AT99/dynamic-wallpaper.git
+$ git clone https://github.com/AinaKANTY/dynamic-wallpaper.git
 $ cd dynamic-wallpaper
 $ chmod +x install.sh
 $ ./install.sh
+```
+
+### Quick Usage
+
+```bash
+# Set wallpaper style 'beach'
+dwall -s beach
+
+# List available styles
+ls /usr/share/dynamic-wallpaper/images/
 ```
 
 ### Automation (Systemd Timer)
@@ -67,9 +89,9 @@ WantedBy=timers.target
 ```
 
 3. **Enable**:
-```ini
+```bash
 systemctl --user enable --now dwall@<style>.timer
-# exemple :
+# example :
 systemctl --user enable --now dwall@beach.timer
 ```
 
@@ -99,7 +121,7 @@ systemctl --user enable --now dwall@beach.timer
 |--|--|--|--|
 |![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/room.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/sahara.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/street.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/tokyo.gif)|
 
- ### Integration with Matugen
+### Integration with Matugen
  
  To make your window borders and UI match the wallpaper automatically with **Matugen**:
 
@@ -126,7 +148,7 @@ general {
 ### How to add own wallpapers
 
 + Download a wallpaper set you like.
-+ Rename the wallpapers (must be **jpg/png**) to `0-23`. If you don't have enough images, symlink them.
++ Rename the wallpapers (supported formats: **jpg**, **png**, **webp**, **gif**) to `0-23`. If you don't have enough images, symlink them.
 + Make a directory in `/usr/share/dynamic-wallpaper/images` and copy your wallpapers in that. 
 + Run the program, select the style and apply it.
 
@@ -146,7 +168,7 @@ $ sudo pacman -S libheif
 $ yay -S libheif
 ```
 
-- Move your `.heic` file in a directory and run following command to convert images - 
+- Move your `.heic` file in a directory and run following command to convert images.
 ```bash
 # change to directory
 $ cd Downloads/heic_images
@@ -155,28 +177,14 @@ $ cd Downloads/heic_images
 $ for file in *.heic; do heif-convert $file ${file/%.heic/.jpg}; done
 ```
 
-- Now, you have the images, just follow the [above](https://github.com/adi1090x/dynamic-wallpaper#How-to-add-own-wallpapers) steps to use these wallpapers with `dwall`.
+- Now, you have the images, just follow the [above](#How-to-add-own-wallpapers) steps to use these wallpapers with `dwall`.
 
-**More Wallpapers :** I've also created a few more wallpaper sets, which are not added to this repository because of their big size. You can download these wallpapers set from here - 
+**More Wallpapers :** I've also created a few more wallpaper sets, which are not added to this repository because of their big size. You can download these wallpapers set from here
 <p align="center">
   <a href="https://github.com/adi1090x/files/tree/master/dynamic-wallpaper/wallpapers"><img alt="undefined" src="https://img.shields.io/badge/Download-Here-blue?style=for-the-badge&logo=github"></a>
 </p>
 
 **`Available Sets`** : `Catalina`, `London`, `Maldives`, `Mojave HD`, `Mount Fuji`, `Seoul`, and more...
-
-#### Roadmap (TODO)
-
-**Wayland (Priority)**
-- [x] **Hyprland**
-- [x] **Sway**
-- [ ] **Cosmic Desktop**
-- [ ] **River / Wayfire**
-
-**X11/Mixed**
-- [x] **XFCE**
-- [x] **KDE Plasma**
-- [x] **GNOME**
-- [ ] **LXQt / Cinnamon**
 
 ### Credits
 - **Original Author**: [Aditya Shakya (@adi1090x)](https://github.com/adi1090x).

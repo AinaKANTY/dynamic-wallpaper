@@ -16,11 +16,11 @@ CACHE="$HOME/.cache/dwall_current"
 
 ## Stop and disable systemd timer
 cleanup_systemd() {
-    if systemctl --user list-timers | grep -q "dwall.timer"; then
+    if systemctl --user list-timers | grep -q "dwall"; then
         echo -e "${ORANGE}[*] Stopping and disabling systemd timer...${NC}"
-        systemctl --user disable --now dwall.timer 2>/dev/null
-        rm -f "$HOME/.config/systemd/user/dwall.timer"
-        rm -f "$HOME/.config/systemd/user/dwall.service"
+        systemctl --user disable --now dwall@*.timer 2>/dev/null
+        rm -f "$HOME/.config/systemd/user/dwall@.timer"
+        rm -f "$HOME/.config/systemd/user/dwall@.service"
         systemctl --user daemon-reload
     fi
 }
