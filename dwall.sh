@@ -20,7 +20,6 @@ WHITEBG="$(printf '\033[47m')"    BLACKBG="$(printf '\033[40m')"
 
 ## Wallpaper directory
 DIR="/usr/share/dynamic-wallpaper/images"
-# HOUR=`date +%k`
 
 ## Wordsplit in ZSH
 set -o shwordsplit 2>/dev/null
@@ -46,17 +45,6 @@ exit_on_signal_SIGTERM() {
 trap exit_on_signal_SIGINT SIGINT
 trap exit_on_signal_SIGTERM SIGTERM
 
-## Prerequisite
-Prerequisite() { 
-    dependencies=($SETTER)
-    for dependency in "${dependencies[@]}"; do
-        type -p "$dependency" &>/dev/null || {
-            echo -e ${RED}"[!] ERROR: Could not find ${GREEN}'${dependency}'${RED}, is it installed?" >&2
-            { reset_color; exit 1; }
-        }
-    done
-}
-
 ## Usage
 usage() {
 	clear
@@ -68,7 +56,7 @@ usage() {
 		Dwall V3.0   : Set wallpapers according to current time.
 		Developed By : Aditya Shakya (@adi1090x)
 			
-		Usage : `basename $0` [-h] [-p] [-s style]
+		Usage : $(basename $0) [-h] [-p] [-s style]
 
 		Options:
 		   -h	Show this help message
@@ -84,10 +72,41 @@ usage() {
 
     cat <<- EOF
 		Examples: 
-		`basename $0` -s beach        Set wallpaper from 'beach' style
-		`basename $0` -p -s sahara    Set wallpaper from 'sahara' style using pywal
+		$(basename $0) -s beach        Set wallpaper from 'beach' style
+		$(basename $0) -p -s sahara    Set wallpaper from 'sahara' style using pywal
 		
 	EOF
+}
+
+## Prerequisite
+Prerequisite() {
+    local bin
+
+    case "$SETTER" in
+        swww)       bin="swww" ;;
+        hyprpaper)  bin="hyprctl" ;;
+        swaybg)     bin="swaybg" ;;
+        wbg)        bin="wbg" ;;
+        wpaperd)    bin="wpaperd" ;;
+        gnome)      bin="gsettings" ;;
+        kde)        bin="qdbus" ;;
+        xfce)       bin="xfconf-query" ;;
+        mate)       bin="gsettings" ;;
+        cinnamon)   bin="gsettings" ;;
+        lxde)       bin="pcmanfm" ;;
+        feh)        bin="feh" ;;
+        nitrogen)   bin="nitrogen" ;;
+        xwallpaper) bin="xwallpaper" ;;
+        *)
+            echo -e "${RED}[!] ERROR: Unknown setter '${SETTER}'${WHITE}" >&2
+            { reset_color; exit 1; }
+            ;;
+    esac
+
+    type -p "$bin" &>/dev/null || {
+        echo -e "${RED}[!] ERROR: Could not find ${GREEN}'${bin}'${RED}, is it installed?${WHITE}" >&2
+        { reset_color; exit 1; }
+    }
 }
 
 ## Detect environment
@@ -97,28 +116,49 @@ detect_environmement() {
             ENV="hyprland"
         elif [[ -n "$SWAYSOCK" ]]; then
             ENV="sway"
+        elif [[ -n "$WAYFIRE_SOCKET" ]]; then
+            ENV="wayfire"
+        elif [[ -n "$NIRI_SOCKET" ]]; then
+            ENV="niri"
         else
-            ENV="wayland-uknow"
+            ENV="wayland-generic"
         fi
-        
+
     elif [[ "$XDG_SESSION_TYPE" == "x11" ]]; then
         case "$XDG_CURRENT_DESKTOP" in
-            GNOME)  ENV="gnome";;
-            KDE)    ENV="kde";;
-            XFCE)   ENV="xfce";;
-            *)      ENV="x11-uknow";;
+            GNOME|ubuntu:GNOME|Pantheon|Deepin|pop:GNOME|ZORIN|budgie-desktop)
+                ENV="gnome" ;;
+            KDE)
+                ENV="kde" ;;
+            XFCE)
+                ENV="xfce" ;;
+            MATE)
+                ENV="mate" ;;
+            X-Cinnamon)
+                ENV="cinnamon" ;;
+            LXDE)
+                ENV="lxde" ;;
+            *)
+                ENV="x11-generic" ;;
         esac
     else
         echo -e "${RED}[!] Error: Environment not supported at this time${WHITE}"; exit 1
     fi
-    
+
     echo -e "${ORANGE}[*] Detected environment: ${MAGENTA}${ENV}${WHITE}"
 }
 
 ## Display Info
 display_info() {
-    local session_name="${XDG_CURRENT_DESKTOP:-Wayland}"
-    [[ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]] && session_name="Hyprland"
+    local session_name
+    case "$ENV" in
+        hyprland)        session_name="Hyprland" ;;
+        sway)            session_name="Sway" ;;
+        wayfire)         session_name="Wayfire" ;;
+        niri)            session_name="Niri" ;;
+        wayland-generic) session_name="Wayland (generic)" ;;
+        *)               session_name="${XDG_CURRENT_DESKTOP:-$ENV}" ;;
+    esac
 
     echo -e "${ORANGE}[*] Setting wallpaper in ${GREEN}${session_name}${ORANGE} session"
     echo -e "${ORANGE}[*] Using setter : ${MAGENTA}${SETTER}${WHITE}"
@@ -127,14 +167,19 @@ display_info() {
 ## Get Image
 get_img() {
     local search_path="$DIR/$STYLE/$1"
-    local found_file=$(ls ${search_path}.* 2>/dev/null | head -n 1)
+    local formats=("png" "jpg" "jpeg" "webp" "gif")
 
-    if [[ -f "$found_file" ]]; then
-        image="$found_file"
-    else
-        echo -e "${RED}[!] Error: No image found for '$1' in $DIR/$STYLE/ (checked .png, .jpg, .webp, .gif)${WHITE}"
-        exit 1
-    fi
+    for fmt in "${formats[@]}"; do
+        if [[ -f "${search_path}.${fmt}" ]]; then
+            image="${search_path}.${fmt}"
+            FORMAT="$fmt"
+            return 0
+        fi
+    done
+
+    echo -e "${RED}[!] Error: No image found for '$1' in $DIR/$STYLE/${WHITE}"
+    echo -e "${RED}[!] Checked formats: ${formats[*]}${WHITE}"
+    { reset_color; exit 1; }
 }
 
 ## Choose wallpaper setter
@@ -142,26 +187,78 @@ choose_setter() {
     case "$ENV" in
         hyprland)
             if command -v swww >/dev/null 2>&1; then
-                    SETTER="swww"
-                elif command -v hyprpaper >/dev/null 2>&1; then
-                    SETTER="hyprpaper"
-                elif command -v swaybg >/dev/null 2>&1; then
-                    SETTER="swaybg"
-                else
-                    echo "[!] No setters found for Hyprland"; exit 1
-                fi
-                ;;
+                SETTER="swww"
+            elif command -v hyprpaper >/dev/null 2>&1; then
+                SETTER="hyprpaper"
+            elif command -v swaybg >/dev/null 2>&1; then
+                SETTER="swaybg"
+            else
+                echo "[!] No setters found for Hyprland (tried: swww, hyprpaper, swaybg)"; exit 1
+            fi
+            ;;
         sway)
             if command -v swaybg >/dev/null 2>&1; then
                 SETTER="swaybg"
+            elif command -v swww >/dev/null 2>&1; then
+                SETTER="swww"
+            elif command -v wpaperd >/dev/null 2>&1; then
+                SETTER="wpaperd"
             else
-                echo "[!] No setters found for sway"; exit 1
+                echo "[!] No setters found for Sway (tried: swaybg, swww, wpaperd)"; exit 1
             fi
             ;;
-        gnome)      SETTER="gnome-settings-daemon";;
-        kde)        SETTER="plasma-workspace";;
-        xfce)       SETTER="xfdesktop";;
-        *)          echo "[!] Unsupported environment: $ENV"; exit 1 ;;
+        wayfire)
+            if command -v swaybg >/dev/null 2>&1; then
+                SETTER="swaybg"
+            elif command -v wbg >/dev/null 2>&1; then
+                SETTER="wbg"
+            elif command -v wpaperd >/dev/null 2>&1; then
+                SETTER="wpaperd"
+            else
+                echo "[!] No setters found for Wayfire (tried: swaybg, wbg, wpaperd)"; exit 1
+            fi
+            ;;
+        niri)
+            if command -v swww >/dev/null 2>&1; then
+                SETTER="swww"
+            elif command -v swaybg >/dev/null 2>&1; then
+                SETTER="swaybg"
+            elif command -v wpaperd >/dev/null 2>&1; then
+                SETTER="wpaperd"
+            else
+                echo "[!] No setters found for Niri (tried: swww, swaybg, wpaperd)"; exit 1
+            fi
+            ;;
+        wayland-generic)
+            if command -v swww >/dev/null 2>&1; then
+                SETTER="swww"
+            elif command -v swaybg >/dev/null 2>&1; then
+                SETTER="swaybg"
+            elif command -v wpaperd >/dev/null 2>&1; then
+                    SETTER="wpaperd"
+            else
+                echo "[!] No setters found for generic Wayland (tried: swww, swaybg, wpaperd)"; exit 1
+            fi
+            ;;
+        gnome)      SETTER="gnome" ;;
+        kde)        SETTER="kde" ;;
+        xfce)       SETTER="xfce" ;;
+        mate)       SETTER="mate" ;;
+        cinnamon)   SETTER="cinnamon" ;;
+        lxde)       SETTER="lxde" ;;
+        x11-generic)
+            if command -v feh >/dev/null 2>&1; then
+                SETTER="feh"
+            elif command -v nitrogen >/dev/null 2>&1; then
+                SETTER="nitrogen"
+            elif command -v xwallpaper >/dev/null 2>&1; then
+                SETTER="xwallpaper"
+            else
+                echo "[!] No setters found for generic X11 (tried: feh, nitrogen, xwallpaper)"; exit 1
+            fi
+            ;;
+        *)
+            echo "[!] Unsupported environment: $ENV"; exit 1 ;;
     esac
 }
 
@@ -169,11 +266,40 @@ choose_setter() {
 apply_colors() {
     local image="$1"
 
-    if command -v matugen >/dev/null 2>&1; then
+    if [[ -n "$PYWAL" ]]; then
+        if command -v wal >/dev/null 2>&1; then
+            wal -i "$image" -n
+        else
+            echo -e "${RED}[!] pywal (wal) is not installed, skipping color generation${WHITE}"
+        fi
+    elif command -v matugen >/dev/null 2>&1; then
         matugen image "$image"
     elif command -v wal >/dev/null 2>&1; then
         wal -i "$image" -n
     fi
+}
+
+## Set wallpaper KDE
+set_kde() {
+    qdbus org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "
+        var allDesktops = desktops();
+        for (var i = 0; i < allDesktops.length; i++) {
+            var d = allDesktops[i];
+            d.wallpaperPlugin = 'org.kde.image';
+            d.currentConfigGroup = ['Wallpaper', 'org.kde.image', 'General'];
+            d.writeConfig('Image', 'file://$1')
+        }
+    "
+}
+
+## Update wallpaper cache
+update_cache() {
+    local cfile="$HOME/.cache/dwall_current"
+    local cdir
+    cdir="$(dirname "$cfile")"
+
+    [[ ! -d "$cdir" ]] && mkdir -p "$cdir"
+    echo "$1" > "$cfile"
 }
 
 ## Wallpaper Setter
@@ -187,25 +313,76 @@ apply_wallpaper() {
             ;;
         swww)
             if ! swww query >/dev/null 2>&1; then
-                swww init && sleep 0.5
+                swww-daemon &
+                sleep 0.5
             fi
             swww img "$image"
             ;;
         swaybg)
-            swaybg -i "$image" -m fill
+            pkill swaybg 2>/dev/null; sleep 0.1
+            swaybg -i "$image" -m fill &
+            ;;
+        wbg)
+            pkill wbg 2>/dev/null; sleep 0.1
+            wbg "$image" &
+            ;;
+        wpaperd)
+            local wpconf="$HOME/.config/wpaperd/wallpaper.toml"
+            local wpdir
+            wpdir="$(dirname "$wpconf")"
+
+            [[ ! -d "$wpdir" ]] && mkdir -p "$wpdir"
+
+            cat > "$wpconf" <<- TOML
+				[[outputs]]
+				name = "*"
+				path = "$image"
+				mode = "fill"
+			TOML
+
+            if pgrep -x wpaperd >/dev/null 2>&1; then
+                killall -SIGHUP wpaperd
+            else
+                wpaperd &
+            fi
             ;;
         gnome)
             gsettings set org.gnome.desktop.background picture-uri "file://$image"
             gsettings set org.gnome.desktop.background picture-uri-dark "file://$image"
+            gsettings set org.gnome.desktop.screensaver picture-uri "file://$image"
             ;;
         kde)
-            plasma-apply-wallpaperimage "$image"
+            set_kde "$image"
             ;;
         xfce)
-            xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/workspace0/last-image -s "$image"
+            local screen monitor
+            screen="$(xrandr --listactivemonitors 2>/dev/null | awk -F ' ' 'END {print $1}' | tr -d :)"
+            monitor="$(xrandr --listactivemonitors 2>/dev/null | awk -F ' ' 'END {print $2}' | tr -d '*+')"
+            xfconf-query -c xfce4-desktop \
+                -p "/backdrop/screen${screen:-0}/monitor${monitor:-0}/workspace0/last-image" \
+                -s "$image"
+            ;;
+        mate)
+            gsettings set org.mate.background picture-filename "$image"
+            ;;
+        cinnamon)
+            gsettings set org.cinnamon.desktop.background picture-uri "file://$image"
+            ;;
+        lxde)
+            pcmanfm --set-wallpaper "$image"
+            ;;
+        feh)
+            feh --bg-fill "$image"
+            ;;
+        nitrogen)
+            nitrogen --set-zoom-fill "$image"
+            ;;
+        xwallpaper)
+            xwallpaper --zoom "$image"
             ;;
     esac
-    
+
+    update_cache "$image"
     apply_colors "$image"
 }
 
@@ -216,7 +393,7 @@ check_style() {
         STYLE="$1"
     else
         echo -e "${RED}[!] Invalid style name : ${GREEN}$1${WHITE}"
-        echo -e "${RED}[!] Available styles are : ${YELLOW}$(ls -m "$DIR")${WHITE}"
+        echo -e "${RED}[!] Available styles are : ${ORANGE}$(ls -m "$DIR")${WHITE}"
         exit 1
     fi
 }
@@ -236,6 +413,8 @@ while getopts ":s:hp" opt; do
         p) PYWAL=true ;;
         s) STYLE=$OPTARG ;;
         h) usage; exit 0 ;;
+        \?) echo -e ${RED}"[!] Unknown option, run ${GREEN}`basename $0` -h"; { reset_color; exit 1; } ;;
+        :)  echo -e ${RED}"[!] Invalid: ${GREEN}-${OPTARG}${RED} requires an argument."; { reset_color; exit 1; } ;;
         *) usage; exit 1 ;;
     esac
 done

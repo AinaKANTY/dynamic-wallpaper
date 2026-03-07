@@ -23,17 +23,34 @@
 
 #### Roadmap (TODO)
 
-**Wayland (Priority)**
-- [x] **Hyprland**
-- [x] **Sway**
-- [ ] **Cosmic Desktop**
-- [ ] **River / Wayfire**
+- [ ] **Multi-monitor support** — Set a different wallpaper per screen
+- [ ] **Random style mode** (`--random`) — Pick a random wallpaper style at launch
+- [ ] **`--list` option** — Display all available styles directly from the CLI
+- [ ] **Weather-aware wallpapers** — Detect current weather and location (via `GeoClue2` or `WeatherScape`) to automatically overlay or switch wallpapers matching real-time weather conditions (rain, sun, snow, fog...)
 
-**X11/Mixed**
-- [x] **XFCE**
-- [x] **KDE Plasma**
-- [x] **GNOME**
-- [ ] **LXQt / Cinnamon**
+## Supported Environments
+
+### Wayland
+![Hyprland](https://img.shields.io/badge/Hyprland-supported-blue?style=flat-square)
+![Sway](https://img.shields.io/badge/Sway-supported-blue?style=flat-square)
+![Wayfire](https://img.shields.io/badge/Wayfire-supported-blue?style=flat-square)
+![Niri](https://img.shields.io/badge/Niri-supported-blue?style=flat-square)
+![Wayland](https://img.shields.io/badge/Wayland%20Generic-supported-blue?style=flat-square)
+
+### X11
+![GNOME](https://img.shields.io/badge/GNOME-supported-orange?style=flat-square&logo=gnome)
+![KDE](https://img.shields.io/badge/KDE%20Plasma-supported-blue?style=flat-square&logo=kde)
+![XFCE](https://img.shields.io/badge/XFCE-supported-lightgrey?style=flat-square)
+![MATE](https://img.shields.io/badge/MATE-supported-green?style=flat-square)
+![Cinnamon](https://img.shields.io/badge/Cinnamon-supported-red?style=flat-square)
+![LXDE](https://img.shields.io/badge/LXDE-supported-yellow?style=flat-square)
+![X11](https://img.shields.io/badge/X11%20Generic-supported-lightgrey?style=flat-square)
+
+> GNOME variants: Ubuntu, Pop!\_OS, Zorin, Budgie, Pantheon, Deepin — all supported via `gsettings`
+
+### Color Generation (optional)
+![matugen](https://img.shields.io/badge/matugen-supported-8b5cf6?style=flat-square)
+![pywal](https://img.shields.io/badge/pywal-supported-8b5cf6?style=flat-square)
 
 ### Dependencies
 
@@ -61,6 +78,32 @@ dwall -s beach
 # List available styles
 ls /usr/share/dynamic-wallpaper/images/
 ```
+
+### Previews
+
+|Aurora|Beach|Bitday|Chihuahuan|
+|--|--|--|--|
+|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/aurora.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/beach.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/bitday.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/chihuahuan.gif)|
+
+|Cliffs|Colony|Desert|Earth|
+|--|--|--|--|
+|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/cliffs.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/colony.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/desert.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/earth.gif)|
+
+|Exodus|Factory|Forest|Gradient|
+|--|--|--|--|
+|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/exodus.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/factory.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/forest.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/gradient.gif)|
+
+|Home|Island|Lake|Lakeside|
+|--|--|--|--|
+|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/home.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/island.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/lake.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/lakeside.gif)|
+
+|Market|Mojave|Moon|Mountains|
+|--|--|--|--|
+|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/market.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/mojave.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/moon.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/mountains.gif)|
+
+|Room|Sahara|Street|Tokyo|
+|--|--|--|--|
+|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/room.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/sahara.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/street.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/tokyo.gif)|
 
 ### Automation (Systemd Timer)
 
@@ -94,32 +137,6 @@ systemctl --user enable --now dwall@<style>.timer
 # example :
 systemctl --user enable --now dwall@beach.timer
 ```
-
-### Previews
-
-|Aurora|Beach|Bitday|Chihuahuan|
-|--|--|--|--|
-|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/aurora.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/beach.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/bitday.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/chihuahuan.gif)|
-
-|Cliffs|Colony|Desert|Earth|
-|--|--|--|--|
-|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/cliffs.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/colony.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/desert.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/earth.gif)|
-
-|Exodus|Factory|Forest|Gradient|
-|--|--|--|--|
-|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/exodus.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/factory.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/forest.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/gradient.gif)|
-
-|Home|Island|Lake|Lakeside|
-|--|--|--|--|
-|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/home.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/island.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/lake.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/lakeside.gif)|
-
-|Market|Mojave|Moon|Mountains|
-|--|--|--|--|
-|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/market.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/mojave.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/moon.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/mountains.gif)|
-
-|Room|Sahara|Street|Tokyo|
-|--|--|--|--|
-|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/room.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/sahara.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/street.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/tokyo.gif)|
 
 ### Integration with Matugen
  
