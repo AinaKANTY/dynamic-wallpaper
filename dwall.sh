@@ -53,8 +53,8 @@ usage() {
 		${RED} ┃┃┗┳┛┃┗┫┣━┫┃┃┃┃┃     ${GREEN}┃╻┃┣━┫┃  ┃  ┣━┛┣━┫┣━┛┣╸ ┣┳┛
 		${RED}╺┻┛ ╹ ╹ ╹╹ ╹╹ ╹╹┗━╸   ${GREEN}┗┻┛╹ ╹┗━╸┗━╸╹  ╹ ╹╹  ┗━╸╹┗╸${WHITE}
 		
-		Dwall V3.0   : Set wallpapers according to current time.
-		Developed By : Aditya Shakya (@adi1090x)
+		Dwall V3.1-pre   : Set wallpapers according to current time.
+		Developed By : Aditya Shakya (@adi1090x) and forked by Aina KANTY (@AinaKANTY)
 			
 		Usage : $(basename $0) [-h] [-p] [-s style]
 
@@ -65,7 +65,7 @@ usage() {
 		   
 	EOF
 
-	styles=(`ls "$DIR"`)
+	styles=($(find "$DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n'))
 	printf ${GREEN}"Available styles:  "
 	printf -- ${ORANGE}'%s  ' "${styles[@]}"
 	printf -- '\n\n'${WHITE}
@@ -393,7 +393,7 @@ check_style() {
         STYLE="$1"
     else
         echo -e "${RED}[!] Invalid style name : ${GREEN}$1${WHITE}"
-        echo -e "${RED}[!] Available styles are : ${ORANGE}$(ls -m "$DIR")${WHITE}"
+        echo -e "${RED}[!] Available styles are : ${ORANGE}$(find "$DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | tr '\n' ' ')${WHITE}"
         exit 1
     fi
 }

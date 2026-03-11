@@ -14,12 +14,11 @@
 
 ### Overview
 
-- **Wallpaper setter**: Automatically detected based on your environment (`swww`, `hyprpaper`, `swaybg`, `hyprctl`, `gsettings`, `plasma-apply-wallpaperimage`, `xfconf-query`)
-- **Multi-environment**: Automatically detects and supports Hyprland, Sway, GNOME, KDE, XFCE and more.
+- **Wallpaper setter**: Automatically detected based on your environment.
+- **Multi-environment**: Automatically detects and supports your DE.
 - **Dynamic Theming**: Supports **Matugen** and **Pywal** for automatic color scheme generation (optional).
 - **Format Support**: Automatically detects `.jpg`, `.png`, `.webp`, and `.gif`.
 - **Scheduler**: Compatible with **Systemd Timers** and **Cronie**.
-- **Testing**: Tested on **Hyprland/Arch**(if you use another environment, please report your experience by opening an issue).
 
 #### Roadmap (TODO)
 
@@ -28,16 +27,16 @@
 - [ ] **`--list` option** — Display all available styles directly from the CLI
 - [ ] **Weather-aware wallpapers** — Detect current weather and location (via `GeoClue2` or `WeatherScape`) to automatically overlay or switch wallpapers matching real-time weather conditions (rain, sun, snow, fog...)
 
-## Supported Environments
+### Supported Environments
 
-### Wayland
+#### Wayland
 ![Hyprland](https://img.shields.io/badge/Hyprland-supported-blue?style=flat-square)
 ![Sway](https://img.shields.io/badge/Sway-supported-blue?style=flat-square)
 ![Wayfire](https://img.shields.io/badge/Wayfire-supported-blue?style=flat-square)
 ![Niri](https://img.shields.io/badge/Niri-supported-blue?style=flat-square)
 ![Wayland](https://img.shields.io/badge/Wayland%20Generic-supported-blue?style=flat-square)
 
-### X11
+#### X11
 ![GNOME](https://img.shields.io/badge/GNOME-supported-orange?style=flat-square&logo=gnome)
 ![KDE](https://img.shields.io/badge/KDE%20Plasma-supported-blue?style=flat-square&logo=kde)
 ![XFCE](https://img.shields.io/badge/XFCE-supported-lightgrey?style=flat-square)
@@ -46,37 +45,63 @@
 ![LXDE](https://img.shields.io/badge/LXDE-supported-yellow?style=flat-square)
 ![X11](https://img.shields.io/badge/X11%20Generic-supported-lightgrey?style=flat-square)
 
-> GNOME variants: Ubuntu, Pop!\_OS, Zorin, Budgie, Pantheon, Deepin — all supported via `gsettings`
-
 ### Color Generation (optional)
 ![matugen](https://img.shields.io/badge/matugen-supported-8b5cf6?style=flat-square)
 ![pywal](https://img.shields.io/badge/pywal-supported-8b5cf6?style=flat-square)
 
 ### Dependencies
 
-Install these programs before using `dwall`:
-- **`systemd`** or **`cronie`**: For the hourly timer (recommended).
+- **`systemd`** or **`cronie`**: For the hourly timer.
 - **`matugen`**: For Material You dynamic colors (optional).
 - **`pywal`**: For dynamic color schemes (optional).
 
 ### Installation
 
-1. **Clone and install**:
+1. **Clone the repository**:
 ```bash
-$ git clone https://github.com/AinaKANTY/dynamic-wallpaper.git
-$ cd dynamic-wallpaper
-$ chmod +x install.sh
-$ ./install.sh
+git clone https://github.com/AinaKANTY/dynamic-wallpaper.git
+cd dynamic-wallpaper
+```
+
+2. **Choose your wallpaper styles (recommended)**
+> [!NOTE]
+> Wallpaper images are managed as a separate submodule to keep the repo lightweight.
+> Clone only the styles you need instead of downloading all 500+ images.
+```bash
+git submodule init
+cd images/
+
+git sparse-checkout init --cone
+git sparse-checkout set firewatch sahara  # replace firewatch and sahara with styles you want
+
+cd ..
+git submodule update
+```
+
+> Want everything? `git clone --recurse-submodules https://github.com/AinaKANTY/dynamic-wallpaper.git`
+
+3. **Install**
+```bash
+chmod +x install.sh
+./install.sh
 ```
 
 ### Quick Usage
 
 ```bash
 # Set wallpaper style 'beach'
-dwall -s beach
+dwall -s sahara
 
 # List available styles
 ls /usr/share/dynamic-wallpaper/images/
+```
+
+### Add more styles later
+
+```bash
+cd dynamic-wallpaper/images/
+git sparse-checkout add beach
+cd .. && git submodule update
 ```
 
 ### Previews
@@ -105,9 +130,9 @@ ls /usr/share/dynamic-wallpaper/images/
 |--|--|--|--|
 |![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/room.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/sahara.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/street.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/tokyo.gif)|
 
-### Automation (Systemd Timer)
+### Automation
 
-This version uses **Systemd Timers** for better integration with Wayland.
+#### Systemd Timer
 
 1. **Create the service** (`~/.config/systemd/user/dwall@.service`):
 ```ini
@@ -136,6 +161,40 @@ WantedBy=timers.target
 systemctl --user enable --now dwall@<style>.timer
 # example :
 systemctl --user enable --now dwall@beach.timer
+```
+
+#### Cronie
+
+1. **Enable and start the cron daemon**:
+```bash
+# systemd
+sudo systemctl enable --now cronie
+# runit (Artix/Void)
+sudo ln -s /etc/runit/sv/cronie /run/runit/service/
+```
+
+2. **Make sure the service is running**:
+```bash
+systemctl status cronie
+```
+
+3. **Get your environment variables**:
+```bash
+env | grep -E '^(SHELL|DISPLAY|WAYLAND_DISPLAY|XDG_SESSION_TYPE|XDG_CURRENT_DESKTOP|DESKTOP_SESSION|DBUS_SESSION_BUS_ADDRESS|XDG_RUNTIME_DIR|HYPRLAND_INSTANCE_SIGNATURE|SWAYSOCK)='
+```
+
+4. **Open crontab and add your values**:
+```bash
+crontab -e
+```
+```bash
+# Replace variables and style with your own values
+0 * * * * DISPLAY=:0 WAYLAND_DISPLAY=wayland-1 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus /usr/bin/dwall -s beach
+```
+
+5. **Verify** the cron job is registered:
+```bash
+crontab -l
 ```
 
 ### Integration with Matugen
@@ -179,19 +238,23 @@ You may also want to use wallpapers from [Dynamic Wallpaper Club](https://dynami
 
 - First install `heif-convert` on your system - 
 ```bash
-# On Archlinux
-$ sudo pacman -S libheif
+# Arch/Manjaro
+sudo pacman -S libheif
 # or
-$ yay -S libheif
+yay -S libheif
+# Debian/Ubuntu
+sudo apt install libheif-examples
+# RedHat/Fedora
+sudo dnf install libheif libheif-tools
 ```
 
 - Move your `.heic` file in a directory and run following command to convert images.
 ```bash
 # change to directory
-$ cd Downloads/heic_images
+cd Downloads/
 
 # convert to jpg images
-$ for file in *.heic; do heif-convert $file ${file/%.heic/.jpg}; done
+for file in *.heic; do heif-convert "$file" "${file/%.heic/.jpg}"; done
 ```
 
 - Now, you have the images, just follow the [above](#how-to-add-own-wallpapers) steps to use these wallpapers with `dwall`.
