@@ -12,6 +12,8 @@
 
 ![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/main.gif) 
 
+> **Philosophy**: to remain minimalist, simple and lightweight, without depending on external tools if possible.
+
 ### Overview
 
 - **Wallpaper setter**: Automatically detected based on your environment.
@@ -23,9 +25,10 @@
 #### Roadmap (TODO)
 
 - [ ] **Multi-monitor support** — Set a different wallpaper per screen
-- [ ] **Random style mode** (`--random`) — Pick a random wallpaper style at launch
-- [ ] **`--list` option** — Display all available styles directly from the CLI
-- [ ] **Weather-aware wallpapers** — Detect current weather and location (via `GeoClue2` or `WeatherScape`) to automatically overlay or switch wallpapers matching real-time weather conditions (rain, sun, snow, fog...)
+- [ ] **Random style mode** (`dwall --random`) — Pick a random wallpaper style at launch
+- [ ] **`dwall --list` option** — Display all available styles directly from the CLI
+- [ ] **Plugin support** — To have more functionality while remaining lightweight
+- [ ] **Weather-aware wallpapers** — A plugin for detect current weather and location to automatically overlay or switch wallpapers matching real-time weather conditions (rain, sun, snow, fog...)
 
 ### Supported Environments
 
@@ -59,76 +62,15 @@
 
 1. **Clone the repository**:
 ```bash
-git clone https://github.com/AinaKANTY/dynamic-wallpaper.git
+git clone --depth 1 https://github.com/AinaKANTY/dynamic-wallpaper.git
 cd dynamic-wallpaper
 ```
 
-2. **Choose your wallpaper styles (recommended)**
-> [!NOTE]
-> Wallpaper images are managed as a separate submodule to keep the repo lightweight.
-> Clone only the styles you need instead of downloading all 500+ images.
-```bash
-git submodule init
-cd images/
-
-git sparse-checkout init --cone
-git sparse-checkout set firewatch sahara  # replace firewatch and sahara with styles you want
-
-cd ..
-git submodule update
-```
-
-> Want everything? `git clone --recurse-submodules https://github.com/AinaKANTY/dynamic-wallpaper.git`
-
-3. **Install**
+2. **Install**
 ```bash
 chmod +x install.sh
 ./install.sh
 ```
-
-### Quick Usage
-
-```bash
-# Set wallpaper style 'beach'
-dwall -s sahara
-
-# List available styles
-ls /usr/share/dynamic-wallpaper/images/
-```
-
-### Add more styles later
-
-```bash
-cd dynamic-wallpaper/images/
-git sparse-checkout add beach
-cd .. && git submodule update
-```
-
-### Previews
-
-|Aurora|Beach|Bitday|Chihuahuan|
-|--|--|--|--|
-|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/aurora.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/beach.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/bitday.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/chihuahuan.gif)|
-
-|Cliffs|Colony|Desert|Earth|
-|--|--|--|--|
-|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/cliffs.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/colony.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/desert.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/earth.gif)|
-
-|Exodus|Factory|Forest|Gradient|
-|--|--|--|--|
-|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/exodus.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/factory.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/forest.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/gradient.gif)|
-
-|Home|Island|Lake|Lakeside|
-|--|--|--|--|
-|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/home.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/island.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/lake.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/lakeside.gif)|
-
-|Market|Mojave|Moon|Mountains|
-|--|--|--|--|
-|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/market.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/mojave.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/moon.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/mountains.gif)|
-
-|Room|Sahara|Street|Tokyo|
-|--|--|--|--|
-|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/room.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/sahara.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/street.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/tokyo.gif)|
 
 ### Automation
 
@@ -158,9 +100,7 @@ WantedBy=timers.target
 
 3. **Enable**:
 ```bash
-systemctl --user enable --now dwall@<style>.timer
-# example :
-systemctl --user enable --now dwall@beach.timer
+systemctl --user enable --now dwall@<style>.timer # replace <style> by yours
 ```
 
 #### Cronie
@@ -258,6 +198,8 @@ for file in *.heic; do heif-convert "$file" "${file/%.heic/.jpg}"; done
 ```
 
 - Now, you have the images, just follow the [above](#how-to-add-own-wallpapers) steps to use these wallpapers with `dwall`.
+
+> For similar images that are duplicated, it is advisable to use "symlinks".
 
 **More Wallpapers :** The original author also created additional wallpaper sets, which are not added to this repository because of their big size. You can download these wallpapers set from here
 <p align="center">

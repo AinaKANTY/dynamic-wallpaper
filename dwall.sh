@@ -53,7 +53,7 @@ usage() {
 		${RED} ┃┃┗┳┛┃┗┫┣━┫┃┃┃┃┃     ${GREEN}┃╻┃┣━┫┃  ┃  ┣━┛┣━┫┣━┛┣╸ ┣┳┛
 		${RED}╺┻┛ ╹ ╹ ╹╹ ╹╹ ╹╹┗━╸   ${GREEN}┗┻┛╹ ╹┗━╸┗━╸╹  ╹ ╹╹  ┗━╸╹┗╸${WHITE}
 		
-		Dwall V3.1-pre   : Set wallpapers according to current time.
+		Dwall V2.0.1-pre   : Set wallpapers according to current time.
 		Developed By : Aditya Shakya (@adi1090x) and forked by Aina KANTY (@AinaKANTY)
 			
 		Usage : $(basename $0) [-h] [-p] [-s style]
