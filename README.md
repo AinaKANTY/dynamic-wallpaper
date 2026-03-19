@@ -12,14 +12,13 @@
 
 ![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/main.gif) 
 
-> **Philosophy**: to remain minimalist, simple and lightweight, without depending on external tools if possible.
-
 ### Overview
 
 - **Wallpaper setter**: Automatically detected based on your environment.
-- **Multi-environment**: Automatically detects and supports your DE.
+- **Multi-environment**: Automatically detects and supports your DE/WM.
+- **Smart Time Fallback**: If an image for the current hour is missing, `dwall` automatically falls back to the previous available hour. You don't need exactly 24 images!
+- **Multi-Format Auto-detection**: Seamlessly searches for `.jpg`, `.jpeg`, `.png`, `.webp`, and `.gif` formats simultaneously.
 - **Dynamic Theming**: Supports **Matugen** and **Pywal** for automatic color scheme generation (optional).
-- **Format Support**: Automatically detects `.jpg`, `.png`, `.webp`, and `.gif`.
 - **Scheduler**: Compatible with **Systemd Timers** and **Cronie**.
 
 #### Roadmap (TODO)
@@ -55,6 +54,10 @@
 ### Dependencies
 
 - **`systemd`** or **`cronie`**: For the hourly timer.
+- **Wallpaper Setters** (install at least one based on your environment if not using a full DE):
+  - *Wayland*: `swww`, `hyprpaper`, `swaybg`, `wpaperd`, or `wbg`.
+  - *X11*: `feh`, `nitrogen`, `hsetroot`, or `xwallpaper`.
+  - *(Note: Full DEs like GNOME, KDE, XFCE, Cinnamon, and MATE use their built-in native tools).*
 - **`matugen`**: For Material You dynamic colors (optional).
 - **`pywal`**: For dynamic color schemes (optional).
 
@@ -127,6 +130,7 @@ env | grep -E '^(SHELL|DISPLAY|WAYLAND_DISPLAY|XDG_SESSION_TYPE|XDG_CURRENT_DESK
 ```bash
 crontab -e
 ```
+
 ```bash
 # Replace variables and style with your own values
 0 * * * * DISPLAY=:0 WAYLAND_DISPLAY=wayland-1 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus /usr/bin/dwall -s beach
@@ -163,10 +167,11 @@ general {
 
 ### How to add own wallpapers
 
-+ Download a wallpaper set you like.
-+ Rename the wallpapers (supported formats: **jpg**, **png**, **webp**, **gif**) to `0-23`. If you don't have enough images, symlink them.
-+ Make a directory in `/usr/share/dynamic-wallpaper/images` and copy your wallpapers in that. 
-+ Run the program, select the style and apply it.
+1. Download a wallpaper set you like.
+2. Rename the wallpapers to match the hours of the day: `0` to `23` (e.g., `0.jpg` for midnight, `12.png` for noon). 
+   > **Note:** Thanks to the **Smart Fallback** feature, you don't need exactly 24 images! If you only have images for `6`, `12`, and `18`, the script will automatically keep showing `6.jpg` until `12:00`. No need to create symlinks!
+3. Make a new directory in `/usr/share/dynamic-wallpaper/images/` (e.g., `mystyle`) and copy your images into it.
+4. Run the program to test: `dwall -s mystyle`.
 
 **`Tips`**
 - You can use `dwall` to change between your favorite wallpapers every hour.
@@ -199,16 +204,12 @@ for file in *.heic; do heif-convert "$file" "${file/%.heic/.jpg}"; done
 
 - Now, you have the images, just follow the [above](#how-to-add-own-wallpapers) steps to use these wallpapers with `dwall`.
 
-> For similar images that are duplicated, it is advisable to use "symlinks".
-
 **More Wallpapers :** The original author also created additional wallpaper sets, which are not added to this repository because of their big size. You can download these wallpapers set from here
 <p align="center">
   <a href="https://github.com/adi1090x/files/tree/master/dynamic-wallpaper/wallpapers"><img alt="undefined" src="https://img.shields.io/badge/Download-Here-blue?style=for-the-badge&logo=github"></a>
 </p>
 
-**`Available Sets`** : `Catalina`, `London`, `Maldives`, `Mojave HD`, `Mount Fuji`, `Seoul`, and more...
-
 ### Credits
 - **Original Author**: [Aditya Shakya (@adi1090x)](https://github.com/adi1090x).
-- **Optimization**: Forked for modern sessions by [Aina KANTY (@ainaKANTY)](https://github.com/AinaKANTY).
+- **Optimization**: Forked and optimized for modern sessions by [Aina KANTY (@AinaKANTY)](https://github.com/AinaKANTY).
 - **License**: Distributed under the **GPL-3.0 License**.
