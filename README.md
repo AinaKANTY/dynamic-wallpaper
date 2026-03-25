@@ -65,7 +65,7 @@
 
 1. **Clone the repository**:
 ```bash
-git clone --depth 1 https://github.com/AinaKANTY/dynamic-wallpaper.git
+git clone https://github.com/AinaKANTY/dynamic-wallpaper.git
 cd dynamic-wallpaper
 ```
 
