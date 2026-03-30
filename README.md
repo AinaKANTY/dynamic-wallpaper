@@ -211,5 +211,4 @@ for file in *.heic; do heif-convert "$file" "${file/%.heic/.jpg}"; done
 
 ### Credits
 - **Original Author**: [Aditya Shakya (@adi1090x)](https://github.com/adi1090x).
-- **Optimization**: Forked and optimized for modern sessions by [Aina KANTY (@AinaKANTY)](https://github.com/AinaKANTY).
 - **License**: Distributed under the **GPL-3.0 License**.

@@ -82,14 +82,14 @@ usage() {
 
 declare -A SETTER_PRIORITY=(
     # --- WAYLAND ---
-    [hyprland]="swww hyprpaper swaybg wpaperd wbg"
-    [sway]="swaybg swww wpaperd wbg"
-    [cosmic]="cosmic-bg swww swaybg wpaperd wbg"
-    [niri]="swww swaybg wpaperd wbg"
-    [river]="swww swaybg wpaperd wbg"
-    [labwc]="swww swaybg wpaperd wbg"
-    [wayfire]="swww swaybg wpaperd wbg"
-    [wayland-generic]="swaybg swww wpaperd"
+    [hyprland]="awww hyprpaper swaybg wpaperd wbg"
+    [sway]="swaybg awww wpaperd wbg"
+    [cosmic]="cosmic-bg awww swaybg wpaperd wbg"
+    [niri]="awww swaybg wpaperd wbg"
+    [river]="awww swaybg wpaperd wbg"
+    [labwc]="awww swaybg wpaperd wbg"
+    [wayfire]="awww swaybg wpaperd wbg"
+    [wayland-generic]="swaybg awww wpaperd"
     
     # --- DESKTOP ENVIRONMENTS ---
     [gnome]="gsettings"
@@ -295,13 +295,13 @@ apply_wallpaper() {
             ;;
         *)
             case "$SETTER" in
-                swww)
-                    if ! swww query >/dev/null 2>&1; then
-                        swww-daemon &
+                awww)
+                    if ! awww query >/dev/null 2>&1; then
+                        awww-daemon &
                         local i=0
-                        until swww query >/dev/null 2>&1 || (( i++ >= 10 )); do sleep 0.1; done
+                        until awww query >/dev/null 2>&1 || (( i++ >= 10 )); do sleep 0.1; done
                     fi
-                    swww img "$img" --transition-type simple --transition-step 90
+                    awww img "$img" --transition-type simple --transition-step 90
                     ;;
                 hyprpaper) 
                     if ! pgrep -x hyprpaper >/dev/null 2>&1; then
