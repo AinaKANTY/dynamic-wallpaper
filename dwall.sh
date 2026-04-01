@@ -48,7 +48,7 @@ usage() {
 		${RED}╺┳┓╻ ╻┏┓╻┏━┓┏┳┓╻┏━╸   ${GREEN}╻ ╻┏━┓╻  ╻  ┏━┓┏━┓┏━┓┏━╸┏━┓
 		${RED} ┃┃┗┳┛┃┗┫┣━┫┃┃┃┃┃     ${GREEN}┃╻┃┣━┫┃  ┃  ┣━┛┣━┫┣━┛┣╸ ┣┳┛
 		${RED}╺┻┛ ╹ ╹ ╹╹ ╹╹ ╹╹┗━╸   ${GREEN}┗┻┛╹ ╹┗━╸┗━╸╹  ╹ ╹╹  ┗━╸╹┗╸${WHITE}
-		
+
 		Dwall V2.0.2-pre   : Set wallpapers according to current time.
 		Developed By : Aditya Shakya (@adi1090x) and forked by Aina KANTY (@AinaKANTY)
 			
@@ -67,13 +67,13 @@ usage() {
     fi
 
     readarray -d "" styles < <(find "$DIR" -mindepth 1 -maxdepth 1 -type d -printf "%f\0" 2>/dev/null)
-	
+
 	printf "${GREEN}""Available styles: ${ORANGE}"
 	printf -- "%s  " "${styles[@]}"
 	printf -- "\n\n${WHITE}"
 
     cat <<- EOF
-		Examples: 
+		Examples:
 		$(basename "$0") -s beach        Set wallpaper from 'beach' style
 		$(basename "$0") -p -s sahara    Set wallpaper from 'sahara' style using pywal
 		
@@ -90,7 +90,7 @@ declare -A SETTER_PRIORITY=(
     [labwc]="awww swaybg wpaperd wbg"
     [wayfire]="awww swaybg wpaperd wbg"
     [wayland-generic]="swaybg awww wpaperd"
-    
+
     # --- DESKTOP ENVIRONMENTS ---
     [gnome]="gsettings"
     [kde]="qdbus6 qdbus"
@@ -105,7 +105,7 @@ declare -A SETTER_PRIORITY=(
     [unity]="gsettings"
     [gnome-flashback]="gsettings"
     [enlightenment]="enlightenment_remote"
- 
+
     # --- GENERIC X11 ---
     [x11-generic]="feh nitrogen hsetroot xwallpaper"
 )
@@ -122,7 +122,7 @@ detect_environment() {
             export WAYLAND_DISPLAY="wayland-1"
         fi
     fi
-    
+
     if [[ "$XDG_SESSION_TYPE" == "wayland" || -n "$WAYLAND_DISPLAY" ]]; then
         if [[ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]]; then
             ENV="hyprland"
@@ -165,7 +165,7 @@ detect_environment() {
             *)
                 ENV="x11-generic" ;;
         esac
-    
+
         if [[ "$ENV" == "x11-generic" ]]; then
             case "$(basename "$DESKTOP_SESSION")" in
                 gnome|ubuntu|budgie|deepin|pantheon|unity|gnome-flashback|pop|zorin)
@@ -220,23 +220,19 @@ check_style() {
 get_img() {
     local target_hour="$1"
     local formats=("png" "jpg" "jpeg" "webp" "gif")
-    
-    shopt -s nullglob nocaseglob 
 
     for (( i=0; i<24; i++ )); do
         local h=$(( (target_hour - i + 24) % 24 ))
-        
+
         for fmt in "${formats[@]}"; do
-            local files=("$DIR/$STYLE/${h}.${fmt}")
-            if [[ ${#files[@]} -gt 0 && -f "${files[0]}" ]]; then
-                echo "${files[0]}"
-                shopt -u nullglob nocaseglob
+            local img="$DIR/$STYLE/${h}.${fmt}"
+            if [[ -f $(realpath --physical --quiet "$img") ]]; then
+                echo "$img"
                 return 0
             fi
         done
     done
-    
-    shopt -u nullglob nocaseglob
+
     echo -e "${RED}[!] Error: No image found for style '$STYLE' in $DIR/$STYLE/${WHITE}" >&2
     exit 1
 }
@@ -268,7 +264,7 @@ apply_wallpaper() {
             gsettings set org.gnome.desktop.background picture-uri-dark "file://$img"
             gsettings set org.gnome.desktop.screensaver picture-uri "file://$img"
             ;;
-        kde) 
+        kde)
             set_kde "$img" 
             ;;
         xfce)
@@ -278,20 +274,20 @@ apply_wallpaper() {
                 xfconf-query -c xfce4-desktop -p "$prop" -s "$img"
             done
             ;;
-        cinnamon) 
-            gsettings set org.cinnamon.desktop.background picture-uri "file://$img" 
+        cinnamon)
+            gsettings set org.cinnamon.desktop.background picture-uri "file://$img"
             ;;
-        mate) 
-            gsettings set org.mate.background picture-filename "$img" 
-            ;;  
+        mate)
+            gsettings set org.mate.background picture-filename "$img"
+            ;;
         lxqt)
-            pcmanfm-qt -w "$img" 
+            pcmanfm-qt -w "$img"
             ;;
-        lxde) 
-            pcmanfm --set-wallpaper "$img" 
+        lxde)
+            pcmanfm --set-wallpaper "$img"
             ;;
-        enlightenment) 
-            enlightenment_remote -desktop-bg-add 0 0 0 0 "$img" 
+        enlightenment)
+            enlightenment_remote -desktop-bg-add 0 0 0 0 "$img"
             ;;
         *)
             case "$SETTER" in
@@ -303,11 +299,11 @@ apply_wallpaper() {
                     fi
                     awww img "$img" --transition-type simple --transition-step 90
                     ;;
-                hyprpaper) 
+                hyprpaper)
                     if ! pgrep -x hyprpaper >/dev/null 2>&1; then
                         echo -e "${ORANGE}[*] Starting hyprpaper daemon...${WHITE}"
                         hyprpaper >/dev/null 2>&1 &
-                        
+
                         local i=0
                         while ! hyprctl hyprpaper list >/dev/null 2>&1 && (( i++ < 20 )); do
                             sleep 0.1
@@ -327,24 +323,24 @@ apply_wallpaper() {
                         echo -e "${RED}[!] wpaperctl not found. Unable to change the background.${WHITE}" >&2
                     fi
                     ;;
-                wbg) 
-                    pkill wbg 2>/dev/null; sleep 0.1; wbg "$img" & 
+                wbg)
+                    pkill wbg 2>/dev/null; sleep 0.1; wbg "$img" &
                     ;;
-                feh) 
-                    feh --bg-fill "$img" 
+                feh)
+                    feh --bg-fill "$img"
                     ;;
-                nitrogen) 
-                    nitrogen --set-zoom-fill "$img" 
+                nitrogen)
+                    nitrogen --set-zoom-fill "$img"
                     ;;
-                hsetroot) 
-                    hsetroot -fill "$img" 
+                hsetroot)
+                    hsetroot -fill "$img"
                     ;;
-                xwallpaper) 
-                    xwallpaper --zoom "$img" 
+                xwallpaper)
+                    xwallpaper --zoom "$img"
                     ;;
-                *) 
+                *)
                     echo -e "${RED}[!] Unknown setter: ${SETTER}${WHITE}" >&2
-                    exit 1 
+                    exit 1
                     ;;
             esac
             ;;
