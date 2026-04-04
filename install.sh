@@ -44,7 +44,7 @@ copy_files() {
 	else
 		sudo ln -s "$DES"/dynamic-wallpaper/dwall.sh /usr/bin/dwall
 	fi
-	echo -e ${GREEN}"[*] Installed Successfully. Execute 'dwall -h' to Run."${WHITE}
+	echo -e ${GREEN}"[*] Installed Successfully. Execute 'dwall --help' to start."${WHITE}
 }
 
 ## Install

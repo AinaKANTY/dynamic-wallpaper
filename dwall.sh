@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+## Author  : Aditya Shakya (adi1090x), Aina KANTY (@AinaKANTY)
+## Mail    : adi1090x@gmail.com, aina.kanty9@gmail.com
+## Github  : @adi1090x, @AinaKANTY
+## Twitter : @adi1090x, @Aina_KANTY
+
 ## Dynamic Wallpaper : Set wallpapers according to current time.
 ## Created to work better with job schedulers
 
@@ -16,6 +21,13 @@ WHITEBG="$(printf '\033[47m')"    BLACKBG="$(printf '\033[40m')"
 ## Wallpaper directory
 DIR="${DWALL_DIR:-/usr/share/dynamic-wallpaper/images}"
 
+## Default values
+ENV=""
+STYLE=""
+PYWAL=""
+RANDOM_MODE=""
+SETTER=""
+
 ## Wordsplit in ZSH
 set -o shwordsplit 2>/dev/null
 
@@ -30,13 +42,13 @@ reset_color() {
 
 ## Script Termination
 exit_on_signal_SIGINT() {
-    printf "${RED}\n\n%s\n\n" "[!] Program Interrupted." >&2
+    printf "${RED}\n\n%s\n\n" "[!] Program Interrupted.\n" >&2
     reset_color
     exit 130
 }
 
 exit_on_signal_SIGTERM() {
-    printf "${RED}\n\n%s\n\n" "[!] Program Terminated." >&2
+    printf "${RED}\n\n%s\n\n" "[!] Program Terminated.\n" >&2
     reset_color
     exit 143
 }
@@ -44,42 +56,110 @@ exit_on_signal_SIGTERM() {
 trap exit_on_signal_SIGINT SIGINT
 trap exit_on_signal_SIGTERM SIGTERM
 
+## List available styles
+list_styles() {
+    if [[ ! -d "$DIR" ]]; then
+        printf "${RED}[!] No styles available (directory not found: %s)${WHITE}\n" "$DIR" >&2
+        exit 1
+    fi
+
+    local styles
+    readarray -d "" styles < <(find "$DIR" -mindepth 1 -maxdepth 1 -type d -printf "%f\0" 2>/dev/null)
+
+    if [[ ${#styles[@]} -eq 0 ]]; then
+        printf "${RED}[!] No styles found in %s${WHITE}\n" "$DIR" >&2
+        exit 1
+    fi
+ 
+    printf -- "${ORANGE}%s  " "${styles[@]}"
+    printf -- "\n${WHITE}"
+}
+
+## Remove a style
+remove_style() {
+    local style="$1"
+
+    if [[ ! -d "$DIR" ]]; then
+        printf "${RED}[!] Wallpaper directory not found: ${GREEN}${DIR}${WHITE}\n" >&2
+        exit 1
+    fi
+
+    local target
+    target=$(realpath -m "$DIR/$style")
+    local base
+    base=$(realpath -m "$DIR")
+
+    if [[ "$target" != "$base/"* ]]; then
+        printf "${RED}[!] Invalid style path: ${GREEN}${style}${WHITE}\n" >&2
+        exit 1
+    fi
+
+    if [[ ! -d "$target" ]]; then
+        printf "${RED}[!] Style not found: ${GREEN}${style}${WHITE}\n" >&2
+        exit 1
+    fi
+
+    printf "${ORANGE}[!] This will permanently delete: ${RED}${target}${WHITE}\n"
+    read -r -p "Are you sure? [y/n] " confirm
+
+    if [[ "${confirm,,}" != "y" ]]; then
+        printf "${ORANGE}[*] Aborted.${WHITE}\n"
+        exit 0
+    fi
+
+    if [[ -w "$target" ]]; then
+        rm -rf "$target"
+    else
+        sudo rm -rf "$target"
+    fi
+    printf "${GREEN}[*] Style '${style}' removed successfully.${WHITE}\n"
+}
+
+## Pick a random style
+random_style() {
+    local styles
+
+    readarray -d "" styles < <(find "$DIR" -mindepth 1 -maxdepth 1 -type d -printf "%f\0" 2>/dev/null)
+
+    if [[ ${#styles[@]} -eq 0 ]]; then
+        printf "${RED}[!] No styles found in ${DIR}${WHITE}\n" >&2
+        exit 1
+    fi
+
+    STYLE="${styles[RANDOM % ${#styles[@]}]}"
+    printf "${ORANGE}[*] Random style selected: ${MAGENTA}${STYLE}${WHITE}\n"
+}
+
 ## Usage
 usage() {
 	clear
+
     cat <<- EOF
 		${RED}╺┳┓╻ ╻┏┓╻┏━┓┏┳┓╻┏━╸   ${GREEN}╻ ╻┏━┓╻  ╻  ┏━┓┏━┓┏━┓┏━╸┏━┓
 		${RED} ┃┃┗┳┛┃┗┫┣━┫┃┃┃┃┃     ${GREEN}┃╻┃┣━┫┃  ┃  ┣━┛┣━┫┣━┛┣╸ ┣┳┛
 		${RED}╺┻┛ ╹ ╹ ╹╹ ╹╹ ╹╹┗━╸   ${GREEN}┗┻┛╹ ╹┗━╸┗━╸╹  ╹ ╹╹  ┗━╸╹┗╸${WHITE}
 
-		Dwall V0.2.3   : Set wallpapers according to current time.
-		Developed By : Aditya Shakya (@adi1090x) and forked by Aina KANTY (@AinaKANTY)
-			
-		Usage : $(basename "$0") [OPTION...] [STYLE]
+		Dwall V0.3.0 : Set wallpapers according to current time.
+		Developed By : Aditya Shakya (@adi1090x) and forked by Aina KANTY (@AinaKANTY).
+
+		Usage : $(basename "$0") [OPTION...]
+		        $(basename "$0") rm <style>
 
 		Options:
-		   -h	Show this help message
-		   -p	Use pywal to set wallpaper
-		   -s	Name of the style to apply
-		   
+		   -h, --help	           Show this help message
+		   -p, --pywal	           Use pywal to set wallpaper
+		   -s, --style <style>	   Name of the style to apply
+		   -S, --setter <setter>   Force a specific wallpaper setter
+		   -l, --list              List available styles
+		   -r, --random            Pick a random style
+
+		Subcommands:
+		   rm <style>              Remove an installed style
+
 	EOF
 
-    if [[ ! -d "$DIR" ]]; then
-        printf "${RED}[!] No styles available (directory not found: %s)${WHITE}\n" "$DIR"
-        return
-    fi
-
-    readarray -d "" styles < <(find "$DIR" -mindepth 1 -maxdepth 1 -type d -printf "%f\0" 2>/dev/null)
-
-	printf "${GREEN}""Styles:\n\t${ORANGE}"
-	printf -- "%s  " "${styles[@]}"
-	printf -- "\n${WHITE}"
-
-    # cat <<- EOF
-		# Examples:
-		# $(basename "$0") -s beach        Set wallpaper from 'beach' style
-		# $(basename "$0") -p -s sahara    Set wallpaper from 'sahara' style using pywal	
-	# EOF
+    printf "Styles:\n\t${ORANGE}"
+    list_styles
 }
 
 declare -A SETTER_PRIORITY=(
@@ -117,11 +197,12 @@ detect_environment() {
     if [[ -z "$XDG_RUNTIME_DIR" ]]; then
         export XDG_RUNTIME_DIR="/run/user/$(id -u)"
     fi
-    if [[ -z "$WAYLAND_DISPLAY" && -z "$DISPLAY" ]]; then
-        if pgrep -x "Hyprland" >/dev/null; then
-            export WAYLAND_DISPLAY="wayland-1"
-        elif pgrep -x "sway" >/dev/null; then
-            export WAYLAND_DISPLAY="wayland-1"
+    
+    if [[ -z "${WAYLAND_DISPLAY:-}" && -z "${DISPLAY:-}" ]]; then
+        local wld
+        wld=$(find /run/user/"$(id -u)" -maxdepth 1 -name 'wayland-*' -not -name '*.lock' -printf "%f\n" 2>/dev/null | sort | head -n 1)
+        if [[ -n "$wld" ]]; then
+            export WAYLAND_DISPLAY="$wld"
         fi
     fi
 
@@ -185,31 +266,45 @@ detect_environment() {
             esac
         fi
     else
-        echo -e "${RED}[!] Error: Environment not supported at this time${WHITE}"; exit 1
+        printf "${RED}[!] Error: Environment not supported at this time${WHITE}\n"; exit 1
     fi
-    echo -e "${ORANGE}[*] Detected environment: ${MAGENTA}${ENV}${WHITE}"
+    printf "${ORANGE}[*] Detected environment: ${MAGENTA}${ENV}${WHITE}\n"
 }
 
-## choose wallpaper setter
+## Choose wallpaper setter
 choose_setter() {
+    if [[ -n "$SETTER" ]]; then
+        if command -v "$SETTER" >/dev/null 2>&1; then
+            return
+        else
+            printf "${RED}[!] Specified setter not found: ${GREEN}${SETTER}${WHITE}\n" >&2
+            exit 1
+        fi
+    fi
+
     for wall_setter in ${SETTER_PRIORITY[$ENV]}; do
         if command -v "$wall_setter" > /dev/null 2>&1; then
             SETTER="$wall_setter"
             return
         fi
     done
-    echo -e "${RED}[!] No setters found for your environment: ${GREEN}${ENV}${WHITE}" >&2; exit 1
+    printf "${RED}[!] No setters found for your environment: ${GREEN}${ENV}${WHITE}\n" >&2; exit 1
 }
 
 ## Check valid style
 check_style() {
+    if [[ ! -d "$DIR" ]]; then
+        printf "${RED}[!] Wallpaper directory not found: ${GREEN}${DIR}${WHITE}\n" >&2
+        exit 1
+    fi
+
     if [[ -d "$DIR/$1" ]]; then
-        echo -e "${BLUE}[*] Using style : ${MAGENTA}$1${WHITE}"
+        printf "${BLUE}[*] Using style : ${MAGENTA}$1${WHITE}\n"
     else
-        echo -e "${RED}[!] Invalid style name : ${GREEN}$1${WHITE}" >&2
+        printf "${RED}[!] Invalid style name : ${GREEN}$1${WHITE}\n" >&2
         local styles
         readarray -t styles < <(find "$DIR" -mindepth 1 -maxdepth 1 -type d -printf "%f\n" 2>/dev/null)
-        echo -e "${RED}[!] Available styles are : ${ORANGE}${styles[*]}${WHITE}" >&2
+        printf "${RED}[!] Available styles are : ${ORANGE}${styles[*]}${WHITE}\n" >&2
         exit 1
     fi
 }
@@ -231,14 +326,14 @@ get_img() {
         done
     done
 
-    echo -e "${RED}[!] Error: No image found for style '$STYLE' in $DIR/$STYLE/${WHITE}" >&2
+    printf "${RED}[!] Error: No image found for style '$STYLE' in $DIR/$STYLE/${WHITE}\n" >&2
     exit 1
 }
 
 ## Set wallpaper KDE
 set_kde() {
     local safe_img="${1//\'/\\\'}"
-    
+
     "$SETTER" org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "
         var allDesktops = desktops();
         for (var i = 0; i < allDesktops.length; i++) {
@@ -248,7 +343,7 @@ set_kde() {
             d.writeConfig('Image', 'file://${safe_img}')
         }
     " || {
-        echo -e "${RED}[!] Failed to set KDE wallpaper${WHITE}" >&2; exit 1
+        printf "${RED}[!] Failed to set KDE wallpaper${WHITE}\n" >&2; exit 1
     }
 }
 
@@ -263,11 +358,17 @@ apply_wallpaper() {
             gsettings set org.gnome.desktop.screensaver picture-uri "file://$img"
             ;;
         kde)
-            set_kde "$img" 
+            set_kde "$img"
             ;;
         xfce)
             local properties
-            properties=$(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep "workspace0/last-image")
+            properties=$(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep "workspace0/last-image" || true)
+            
+            if [[ -z "$properties" ]]; then
+                printf "${RED}[!] xfce: no wallpaper properties found via xfconf-query${WHITE}\n" >&2
+                exit 1
+            fi
+            
             for prop in $properties; do
                 xfconf-query -c xfce4-desktop -p "$prop" -s "$img"
             done
@@ -292,42 +393,82 @@ apply_wallpaper() {
                 awww)
                     if ! awww query >/dev/null 2>&1; then
                         awww-daemon &
+                        
                         local i=0
-                        until awww query >/dev/null 2>&1 || (( i++ >= 10 )); do sleep 0.1; done
+                        until awww query >/dev/null 2>&1; do
+                            (( i++ >= 10 )) && { printf "${RED}[!] awww-daemon failed to start${WHITE}\n" >&2; exit 1; }
+                            sleep 0.1
+                        done
                     fi
                     awww img "$img" --transition-type simple --transition-step 90
                     ;;
                 hyprpaper)
-                    if ! pgrep -x hyprpaper >/dev/null 2>&1; then
-                        echo -e "${ORANGE}[*] Starting hyprpaper daemon...${WHITE}"
-                        hyprpaper >/dev/null 2>&1 &
+                    mkdir -p ~/.config/hypr
+                    cat > ~/.config/hypr/hyprpaper.conf << EOF
+splash = false
+wallpaper {
+    monitor = *
+    path = "$img"
+}
+EOF
+                    pkill hyprpaper 2>/dev/null || true
+                    local i=0
+                    
+                    while pgrep -x hyprpaper >/dev/null 2>&1; do
+                        (( i++ >= 20 )) && { printf "${RED}[!] hyprpaper failed to stop${WHITE}\n" >&2; exit 1; }
+                        sleep 0.1
+                    done
 
-                        local i=0
-                        while ! hyprctl hyprpaper list >/dev/null 2>&1 && (( i++ < 20 )); do
-                            sleep 0.1
-                        done
-                    fi
-                    hyprctl hyprpaper preload "$img" >/dev/null 2>&1
-                    hyprctl hyprpaper wallpaper ",$img" >/dev/null 2>&1
+                    printf "${ORANGE}[*] Starting hyprpaper daemon...${WHITE}\n"
+                    hyprpaper >/dev/null 2>&1 &
+
+                    i=0
+                    while ! pgrep -x hyprpaper >/dev/null 2>&1; do
+                        (( i++ >= 20 )) && { printf "${RED}[!] hyprpaper failed to start${WHITE}\n" >&2; exit 1; }
+                        sleep 0.1
+                    done
                     ;;
                 swaybg)
                     pkill swaybg 2>/dev/null || true
+                    
                     local i=0
-                    while pgrep -x swaybg >/dev/null 2>&1 && (( i++ < 20 )); do sleep 0.05; done
+                    while pgrep -x swaybg >/dev/null 2>&1; do
+                        (( i++ >= 20 )) && { printf "${RED}[!] swaybg failed to stop${WHITE}\n" >&2; exit 1; }
+                        sleep 0.05
+                    done
+                    
                     swaybg -i "$img" -m fill &
-                    ;; 
+                    
+                    i=0
+                    while ! pgrep -x swaybg >/dev/null 2>&1; do
+                        (( i++ >= 20 )) && { printf "${RED}[!] swaybg failed to start${WHITE}\n" >&2; exit 1; }
+                        sleep 0.05
+                    done
+                    ;;
                 wpaperd)
                     if command -v wpaperctl >/dev/null 2>&1; then
                         wpaperctl set-wallpaper "$img"
                     else
-                        echo -e "${RED}[!] wpaperctl not found. Unable to change the background.${WHITE}" >&2
+                        printf "${RED}[!] wpaperctl not found. Unable to change the background.${WHITE}\n" >&2
+                        exit 1
                     fi
                     ;;
                 wbg)
                     pkill wbg 2>/dev/null || true
+                    
                     local i=0
-                    while pgrep -x wbg >/dev/null 2>&1 && (( i++ < 20 )); do sleep 0.05; done
+                    while pgrep -x wbg >/dev/null 2>&1; do
+                        (( i++ >= 20 )) && { printf "${RED}[!] wbg failed to stop${WHITE}\n" >&2; exit 1; }
+                        sleep 0.05
+                    done
+                    
                     wbg "$img" &
+                    
+                    i=0
+                    while ! pgrep -x wbg >/dev/null 2>&1; do
+                        (( i++ >= 20 )) && { printf "${RED}[!] wbg failed to start${WHITE}\n" >&2; exit 1; }
+                        sleep 0.05
+                    done
                     ;;
                 feh)
                     feh --bg-fill "$img"
@@ -342,7 +483,7 @@ apply_wallpaper() {
                     xwallpaper --zoom "$img"
                     ;;
                 *)
-                    echo -e "${RED}[!] Unknown setter: ${SETTER}${WHITE}" >&2
+                    printf "${RED}[!] Unknown setter: ${SETTER}${WHITE}\n" >&2
                     exit 1
                     ;;
             esac
@@ -357,8 +498,9 @@ apply_wallpaper() {
 update_cache() {
     local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/dwall"
     local cfile="$cache_dir/current"
+    
     [[ ! -d "$cache_dir" ]] && mkdir -p "$cache_dir"
-    echo "$1" > "$cfile" || echo -e "${RED}[!] Failed to update cache${WHITE}" >&2
+    echo "$1" > "$cfile" || printf "${RED}[!] Failed to update cache${WHITE}\n" >&2
 }
 
 ## Apply colors from image
@@ -369,14 +511,12 @@ apply_colors() {
         if command -v wal >/dev/null 2>&1; then
             wal -i "$image" -n
         else
-            echo -e "${RED}[!] pywal (wal) is not installed, skipping color generation.${WHITE}" >&2
+            printf "${RED}[!] pywal (wal) is not installed, but -p was passed.${WHITE}\n" >&2
         fi
     elif command -v matugen >/dev/null 2>&1; then
         matugen image "$image"
-    elif command -v wal >/dev/null 2>&1; then
-        wal -i "$image" -n
     else
-        echo -e "${ORANGE}[*] No color generator (matugen/pywal) found.${WHITE}"
+        printf "${ORANGE}[*] No color generator (matugen/pywal) found.${WHITE}\n"
     fi
 }
 
@@ -395,53 +535,82 @@ display_info() {
         wayland-generic) session_name="Wayland (generic)" ;;
         # --- DESKTOP ENVIRONMENTS ---
         gnome)           session_name="GNOME" ;;
-        kde)             session_name="KDE" ;;
+        kde)             session_name="KDE Plasma" ;;
         xfce)            session_name="XFCE" ;;
         budgie)          session_name="Budgie" ;;
         cinnamon)        session_name="Cinnamon" ;;
         deepin)          session_name="Deepin" ;;
         pantheon)        session_name="Pantheon" ;;
         mate)            session_name="MATE" ;;
-        lxqt)            session_name="LXQT" ;;
+        lxqt)            session_name="LXQt" ;;
         lxde)            session_name="LXDE" ;;
         unity)           session_name="Unity" ;;
         gnome-flashback) session_name="GNOME Flashback" ;;
         enlightenment)   session_name="Enlightenment" ;;
         # --- GENERIC X11 ---
         x11-generic)     session_name="X11 (generic)" ;;
+        *)               session_name="$ENV" ;;
     esac
 
-    echo -e "${ORANGE}[*] Setting wallpaper in ${GREEN}${session_name}${ORANGE} session${WHITE}"
-    echo -e "${ORANGE}[*] Using setter : ${MAGENTA}${SETTER}${WHITE}"
+    printf "${ORANGE}[*] Setting wallpaper in ${GREEN}${session_name}${ORANGE} session${WHITE}\n"
+    printf "${ORANGE}[*] Using setter : ${MAGENTA}${SETTER}${WHITE}\n"
 }
 
 ## Main
 main() {
     local h=$((10#$(date +%H)))
     local current_image
-    
+
     current_image=$(get_img "$h") || exit 1
-    
+
     apply_wallpaper "$current_image"
-    
+
     reset_color
     exit 0
 }
 
+if [[ $# -eq 0 ]]; then
+    usage
+    exit 1
+fi
+
+## Handle subcommands
+if [[ "$1" == "rm" ]]; then
+    if [[ -z "${2:-}" ]]; then
+        printf "${RED}[!] Usage: $(basename "$0") rm <style>${WHITE}\n" >&2
+        exit 1
+    fi
+    remove_style "$2"
+    exit 0
+fi
+
 ## Get Options
-while getopts ":s:hp" opt; do
-    case ${opt} in
-        p) PYWAL=true ;;
-        s) STYLE=$OPTARG ;;
-        h) usage; exit 0 ;;
-        \?) echo -e "${RED}[!] Unknown option, run ${GREEN}$(basename "$0") --help"; exit 1 ;;
-        :)  echo -e "${RED}[!] Invalid: ${GREEN}-${OPTARG}${RED} requires an argument."; exit 1 ;;
-        *) usage; exit 1 ;;
+parsed=$(getopt -o "hplrs:S:" --long "help,pywal,list,random,style:,setter:" -n "$(basename "$0")" -- "$@") || {
+    printf "${RED}[!] Run ${GREEN}$(basename "$0") --help${RED} for usage.${WHITE}\n" >&2
+    exit 1
+}
+
+eval set -- "$parsed"
+
+while true; do
+    case "$1" in
+        -h|--help)     usage; exit 0 ;;
+        -p|--pywal)    PYWAL=true; shift ;;
+        -l|--list)     list_styles; exit 0 ;;
+        -r|--random)   RANDOM_MODE=true; shift ;;
+        -s|--style)    STYLE="$2"; shift 2 ;;
+        -S|--setter)   SETTER="$2"; shift 2 ;;
+        --) shift; break ;;
+        *) break ;;
     esac
 done
 
 ## Run
-if [[ "$STYLE" ]]; then
+if [[ -n "$RANDOM_MODE" && -z "$STYLE" ]]; then
+    random_style
+fi
+
+if [[ -n "$STYLE" ]]; then
     detect_environment
     choose_setter
     check_style "$STYLE"

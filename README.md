@@ -24,8 +24,6 @@
 #### Roadmap (TODO)
 
 - [ ] **Multi-monitor support** — Set a different wallpaper per screen
-- [ ] **Random style mode** (`dwall --random`) — Pick a random wallpaper style at launch
-- [ ] **`dwall --list` option** — Display all available styles directly from the CLI
 - [ ] **Plugin support** — To have more functionality while remaining lightweight
 - [ ] **Weather-aware wallpapers** — A plugin for detect current weather and location to automatically overlay or switch wallpapers matching real-time weather conditions (rain, sun, snow, fog...)
 
@@ -59,7 +57,7 @@ The script uses Matugen by default if installed, and falls back to Pywal if Matu
 - **Wallpaper Setters** (install at least one based on your environment if not using a full DE):
   - *Wayland*: `awww`, `hyprpaper`, `swaybg`, `wpaperd`, or `wbg`.
   - *X11*: `feh`, `nitrogen`, `hsetroot`, or `xwallpaper`.
-  - *(Note: Full DEs like GNOME, KDE, XFCE, Cinnamon, and MATE use their built-in native tools).*
+  - *DEs*: their built-in native tools.
 - **`matugen`**: For Material You dynamic colors (optional).
 - **`pywal`**: For dynamic color schemes (optional).
 
@@ -187,8 +185,6 @@ You may also want to use wallpapers from [Dynamic Wallpaper Club](https://dynami
 ```bash
 # Arch/Manjaro
 sudo pacman -S libheif
-# or
-yay -S libheif
 # Debian/Ubuntu
 sudo apt install libheif-examples
 # RedHat/Fedora
