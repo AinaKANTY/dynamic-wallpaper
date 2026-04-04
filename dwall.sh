@@ -19,6 +19,9 @@ DIR="${DWALL_DIR:-/usr/share/dynamic-wallpaper/images}"
 ## Wordsplit in ZSH
 set -o shwordsplit 2>/dev/null
 
+## Strict mode
+set -euo pipefail
+
 ## Reset terminal colors
 reset_color() {
 	tput sgr0   # reset attributes
@@ -43,7 +46,7 @@ trap exit_on_signal_SIGTERM SIGTERM
 
 ## Usage
 usage() {
-	# clear
+	clear
     cat <<- EOF
 		${RED}╺┳┓╻ ╻┏┓╻┏━┓┏┳┓╻┏━╸   ${GREEN}╻ ╻┏━┓╻  ╻  ┏━┓┏━┓┏━┓┏━╸┏━┓
 		${RED} ┃┃┗┳┛┃┗┫┣━┫┃┃┃┃┃     ${GREEN}┃╻┃┣━┫┃  ┃  ┣━┛┣━┫┣━┛┣╸ ┣┳┛
@@ -52,7 +55,7 @@ usage() {
 		Dwall V0.2.3-pre   : Set wallpapers according to current time.
 		Developed By : Aditya Shakya (@adi1090x) and forked by Aina KANTY (@AinaKANTY)
 			
-		Usage : $(basename "$0") [-h] [-p] [-s style]
+		Usage : $(basename "$0") [OPTION...] [STYLE]
 
 		Options:
 		   -h	Show this help message
@@ -68,16 +71,15 @@ usage() {
 
     readarray -d "" styles < <(find "$DIR" -mindepth 1 -maxdepth 1 -type d -printf "%f\0" 2>/dev/null)
 
-	printf "${GREEN}""Available styles: ${ORANGE}"
+	printf "${GREEN}""Styles:\n\t${ORANGE}"
 	printf -- "%s  " "${styles[@]}"
-	printf -- "\n\n${WHITE}"
+	printf -- "\n${WHITE}"
 
-    cat <<- EOF
-		Examples:
-		$(basename "$0") -s beach        Set wallpaper from 'beach' style
-		$(basename "$0") -p -s sahara    Set wallpaper from 'sahara' style using pywal
-		
-	EOF
+    # cat <<- EOF
+		# Examples:
+		# $(basename "$0") -s beach        Set wallpaper from 'beach' style
+		# $(basename "$0") -p -s sahara    Set wallpaper from 'sahara' style using pywal	
+	# EOF
 }
 
 declare -A SETTER_PRIORITY=(
@@ -128,20 +130,16 @@ detect_environment() {
             ENV="hyprland"
         elif [[ -n "$SWAYSOCK" ]]; then
             ENV="sway"
-        elif [[ -n "$COSMIC_SESSION" ]]; then # to be checked
+        elif [[ -n "$COSMIC_SESSION" ]]; then # TO BE CHECKED
             ENV="cosmic"
         elif [[ -n "$NIRI_SOCKET" ]]; then
             ENV="niri"
         elif [[ -n "$WAYFIRE_SOCKET" ]]; then
             ENV="wayfire"
-        elif command -v pgrep >/dev/null 2>&1; then
-            if pgrep -x river >/dev/null 2>&1; then # process name to be checked
-                ENV="river"
-            elif pgrep -x labwc >/dev/null 2>&1; then # process name to be checked
-                ENV="labwc"
-            else
-                ENV="wayland-generic"
-            fi
+        elif pgrep -x river >/dev/null 2>&1; then # TO BE CHECKED: process name
+            ENV="river"
+        elif pgrep -x labwc >/dev/null 2>&1; then # TO BE CHECKED: process name
+            ENV="labwc"
         else
             ENV="wayland-generic"
         fi
@@ -226,7 +224,7 @@ get_img() {
 
         for fmt in "${formats[@]}"; do
             local img="$DIR/$STYLE/${h}.${fmt}"
-            if [[ -f $(realpath --physical --quiet "$img") ]]; then
+            if [[ -f "$img" ]]; then
                 echo "$img"
                 return 0
             fi
@@ -313,7 +311,9 @@ apply_wallpaper() {
                     hyprctl hyprpaper wallpaper ",$img" >/dev/null 2>&1
                     ;;
                 swaybg)
-                    pkill swaybg 2>/dev/null; sleep 0.1
+                    pkill swaybg 2>/dev/null || true
+                    local i=0
+                    while pgrep -x swaybg >/dev/null 2>&1 && (( i++ < 20 )); do sleep 0.05; done
                     swaybg -i "$img" -m fill &
                     ;; 
                 wpaperd)
@@ -324,7 +324,10 @@ apply_wallpaper() {
                     fi
                     ;;
                 wbg)
-                    pkill wbg 2>/dev/null; sleep 0.1; wbg "$img" &
+                    pkill wbg 2>/dev/null || true
+                    local i=0
+                    while pgrep -x wbg >/dev/null 2>&1 && (( i++ < 20 )); do sleep 0.05; done
+                    wbg "$img" &
                     ;;
                 feh)
                     feh --bg-fill "$img"
@@ -359,7 +362,6 @@ update_cache() {
 }
 
 ## Apply colors from image
-# Priority: pywal (if -p flag) > matugen > wal
 apply_colors() {
     local image="$1"
 
@@ -382,6 +384,7 @@ apply_colors() {
 display_info() {
     local session_name
     case "$ENV" in
+        # --- WAYLAND ---
         hyprland)        session_name="Hyprland" ;;
         sway)            session_name="Sway" ;;
         cosmic)          session_name="Cosmic" ;;
@@ -390,7 +393,22 @@ display_info() {
         labwc)           session_name="Labwc" ;;
         wayfire)         session_name="Wayfire" ;;
         wayland-generic) session_name="Wayland (generic)" ;;
-        *)               session_name="${XDG_CURRENT_DESKTOP:-$ENV}" ;;
+        # --- DESKTOP ENVIRONMENTS ---
+        gnome)           session_name="GNOME" ;;
+        kde)             session_name="KDE" ;;
+        xfce)            session_name="XFCE" ;;
+        budgie)          session_name="Budgie" ;;
+        cinnamon)        session_name="Cinnamon" ;;
+        deepin)          session_name="Deepin" ;;
+        pantheon)        session_name="Pantheon" ;;
+        mate)            session_name="MATE" ;;
+        lxqt)            session_name="LXQT" ;;
+        lxde)            session_name="LXDE" ;;
+        unity)           session_name="Unity" ;;
+        gnome-flashback) session_name="GNOME Flashback" ;;
+        enlightenment)   session_name="Enlightenment" ;;
+        # --- GENERIC X11 ---
+        x11-generic)     session_name="X11 (generic)" ;;
     esac
 
     echo -e "${ORANGE}[*] Setting wallpaper in ${GREEN}${session_name}${ORANGE} session${WHITE}"
@@ -416,7 +434,7 @@ while getopts ":s:hp" opt; do
         p) PYWAL=true ;;
         s) STYLE=$OPTARG ;;
         h) usage; exit 0 ;;
-        \?) echo -e "${RED}[!] Unknown option, run ${GREEN}$(basename "$0") -h"; exit 1 ;;
+        \?) echo -e "${RED}[!] Unknown option, run ${GREEN}$(basename "$0") --help"; exit 1 ;;
         :)  echo -e "${RED}[!] Invalid: ${GREEN}-${OPTARG}${RED} requires an argument."; exit 1 ;;
         *) usage; exit 1 ;;
     esac

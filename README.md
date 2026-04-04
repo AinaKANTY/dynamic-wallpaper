@@ -51,11 +51,13 @@
 ![matugen](https://img.shields.io/badge/matugen-supported-8b5cf6?style=flat-square)
 ![pywal](https://img.shields.io/badge/pywal-supported-8b5cf6?style=flat-square)
 
+The script uses Matugen by default if installed, and falls back to Pywal if Matugen does not exist.
+
 ### Dependencies
 
 - **`systemd`** or **`cronie`**: For the hourly timer.
 - **Wallpaper Setters** (install at least one based on your environment if not using a full DE):
-  - *Wayland*: `swww`, `hyprpaper`, `swaybg`, `wpaperd`, or `wbg`.
+  - *Wayland*: `awww`, `hyprpaper`, `swaybg`, `wpaperd`, or `wbg`.
   - *X11*: `feh`, `nitrogen`, `hsetroot`, or `xwallpaper`.
   - *(Note: Full DEs like GNOME, KDE, XFCE, Cinnamon, and MATE use their built-in native tools).*
 - **`matugen`**: For Material You dynamic colors (optional).
