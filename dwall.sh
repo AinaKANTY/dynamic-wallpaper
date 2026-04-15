@@ -27,6 +27,7 @@ STYLE=""
 PYWAL=""
 RANDOM_MODE=""
 SETTER=""
+MONITOR=""
 
 ## Wordsplit in ZSH
 set -o shwordsplit 2>/dev/null
@@ -139,7 +140,7 @@ usage() {
 		${RED} ┃┃┗┳┛┃┗┫┣━┫┃┃┃┃┃     ${GREEN}┃╻┃┣━┫┃  ┃  ┣━┛┣━┫┣━┛┣╸ ┣┳┛
 		${RED}╺┻┛ ╹ ╹ ╹╹ ╹╹ ╹╹┗━╸   ${GREEN}┗┻┛╹ ╹┗━╸┗━╸╹  ╹ ╹╹  ┗━╸╹┗╸${WHITE}
 
-		Dwall V0.3.0 : Set wallpapers according to current time.
+		Dwall V0.4.0 : Set wallpapers according to current time.
 		Developed By : Aditya Shakya (@adi1090x) and forked by Aina KANTY (@AinaKANTY).
 
 		Usage : $(basename "$0") [OPTION...]
@@ -150,6 +151,7 @@ usage() {
 		   -p, --pywal	           Use pywal to set wallpaper
 		   -s, --style <style>	   Name of the style to apply
 		   -S, --setter <setter>   Force a specific wallpaper setter
+		   -m, --monitor <name>    Target a specific monitor (ex: DP-1, eDP-1)
 		   -l, --list              List available styles
 		   -r, --random            Pick a random style
 
@@ -194,7 +196,7 @@ declare -A SETTER_PRIORITY=(
 
 ## Detect environment
 detect_environment() {
-    if [[ -z "$XDG_RUNTIME_DIR" ]]; then
+    if [[ -z "${XDG_RUNTIME_DIR:-}" ]]; then
         export XDG_RUNTIME_DIR="/run/user/$(id -u)"
     fi
     
@@ -206,16 +208,16 @@ detect_environment() {
         fi
     fi
 
-    if [[ "$XDG_SESSION_TYPE" == "wayland" || -n "$WAYLAND_DISPLAY" ]]; then
-        if [[ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]]; then
+    if [[ "${XDG_SESSION_TYPE:-}" == "wayland" || -n "${WAYLAND_DISPLAY:-}" ]]; then
+        if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then
             ENV="hyprland"
-        elif [[ -n "$SWAYSOCK" ]]; then
+        elif [[ -n "${SWAYSOCK:-}" ]]; then
             ENV="sway"
-        elif [[ -n "$COSMIC_SESSION" ]]; then # TO BE CHECKED
+        elif [[ -n "${COSMIC_SESSION:-}" ]]; then # TO BE CHECKED
             ENV="cosmic"
-        elif [[ -n "$NIRI_SOCKET" ]]; then
+        elif [[ -n "${NIRI_SOCKET:-}" ]]; then
             ENV="niri"
-        elif [[ -n "$WAYFIRE_SOCKET" ]]; then
+        elif [[ -n "${WAYFIRE_SOCKET:-}" ]]; then
             ENV="wayfire"
         elif pgrep -x river >/dev/null 2>&1; then # TO BE CHECKED: process name
             ENV="river"
@@ -225,8 +227,8 @@ detect_environment() {
             ENV="wayland-generic"
         fi
 
-    elif [[ "$XDG_SESSION_TYPE" == "x11" || -n "$DISPLAY" ]]; then
-        case "$XDG_CURRENT_DESKTOP" in
+    elif [[ "${XDG_SESSION_TYPE:-}" == "x11" || -n "${DISPLAY:-}" ]]; then
+        case "${XDG_CURRENT_DESKTOP:-}" in
             *GNOME|*budgie|*Deepin|*Pantheon|*unity*)
                 ENV="gnome" ;;
             *KDE|*Plasma*)
@@ -246,7 +248,7 @@ detect_environment() {
         esac
 
         if [[ "$ENV" == "x11-generic" ]]; then
-            case "$(basename "$DESKTOP_SESSION")" in
+            case "$(basename "${DESKTOP_SESSION:-}")" in
                 gnome|ubuntu|budgie|deepin|pantheon|unity|gnome-flashback|pop|zorin)
                     ENV="gnome" ;;
                 plasma|kde-plasma|kde)
@@ -333,11 +335,13 @@ get_img() {
 ## Set wallpaper KDE
 set_kde() {
     local safe_img="${1//\'/\\\'}"
+    local target_screen="${2:-}"
 
     "$SETTER" org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "
         var allDesktops = desktops();
         for (var i = 0; i < allDesktops.length; i++) {
             var d = allDesktops[i];
+            if ('${target_screen}' !== '' && d.screen != '${target_screen}') continue;
             d.wallpaperPlugin = 'org.kde.image';
             d.currentConfigGroup = ['Wallpaper', 'org.kde.image', 'General'];
             d.writeConfig('Image', 'file://${safe_img}')
@@ -345,6 +349,29 @@ set_kde() {
     " || {
         printf "${RED}[!] Failed to set KDE wallpaper${WHITE}\n" >&2; exit 1
     }
+}
+
+validate_monitor() {
+    [[ -z "$MONITOR" ]] && return 0
+
+    case "$ENV" in
+        hyprland)
+            if command -v jq >/dev/null 2>&1; then
+                if ! hyprctl monitors -j | jq -e '.[] | select(.name == "'"$MONITOR"'")' >/dev/null 2>&1; then
+                    printf "${RED}[!] Monitor '%s' not found${WHITE}\n" "$MONITOR" >&2
+                    exit 1
+                fi
+            else
+                if ! hyprctl monitors -j | grep -q "\"name\": \"$MONITOR\""; then
+                    printf "${RED}[!] Monitor '%s' not found${WHITE}\n" "$MONITOR" >&2
+                    exit 1
+                fi
+            fi
+            ;;
+        *)
+            printf "${ORANGE}[!] Warning: --monitor not natively supported for %s, applying globally.${WHITE}\n" "$ENV" >&2
+            ;;
+    esac
 }
 
 ## Wallpaper Setter
@@ -358,7 +385,7 @@ apply_wallpaper() {
             gsettings set org.gnome.desktop.screensaver picture-uri "file://$img"
             ;;
         kde)
-            set_kde "$img"
+            set_kde "$img" "$MONITOR"
             ;;
         xfce)
             local properties
@@ -367,6 +394,14 @@ apply_wallpaper() {
             if [[ -z "$properties" ]]; then
                 printf "${RED}[!] xfce: no wallpaper properties found via xfconf-query${WHITE}\n" >&2
                 exit 1
+            fi
+            
+            if [[ -n "$MONITOR" ]]; then
+                properties=$(echo "$properties" | grep -i "$MONITOR" || true)
+                if [[ -z "$properties" ]]; then
+                    printf "${RED}[!] xfce: Monitor '%s' not found in configuration.${WHITE}\n" "$MONITOR" >&2
+                    exit 1
+                fi
             fi
             
             for prop in $properties; do
@@ -393,57 +428,72 @@ apply_wallpaper() {
                 awww)
                     if ! awww query >/dev/null 2>&1; then
                         awww-daemon &
-                        
+
                         local i=0
                         until awww query >/dev/null 2>&1; do
                             (( i++ >= 10 )) && { printf "${RED}[!] awww-daemon failed to start${WHITE}\n" >&2; exit 1; }
                             sleep 0.1
                         done
                     fi
-                    awww img "$img" --transition-type simple --transition-step 90
+
+                    if [[ -n "$MONITOR" ]]; then
+                        awww img "$img" -o "$MONITOR" --transition-type simple --transition-step 90
+                    else
+                        awww img "$img" --transition-type simple --transition-step 90
+                    fi
                     ;;
                 hyprpaper)
-                    mkdir -p ~/.config/hypr
-                    cat > ~/.config/hypr/hyprpaper.conf << EOF
-splash = false
-wallpaper {
-    monitor = *
-    path = "$img"
-}
-EOF
-                    pkill hyprpaper 2>/dev/null || true
-                    local i=0
-                    
-                    while pgrep -x hyprpaper >/dev/null 2>&1; do
-                        (( i++ >= 20 )) && { printf "${RED}[!] hyprpaper failed to stop${WHITE}\n" >&2; exit 1; }
-                        sleep 0.1
-                    done
+                    if ! pgrep -x hyprpaper >/dev/null 2>&1; then
+                        printf "${ORANGE}[*] Starting hyprpaper daemon...${WHITE}\n"
+                        hyprpaper >/dev/null 2>&1 &
 
-                    printf "${ORANGE}[*] Starting hyprpaper daemon...${WHITE}\n"
-                    hyprpaper >/dev/null 2>&1 &
+                        local i=0
+                        while ! hyprctl hyprpaper wallpaper >/dev/null 2>&1; do
+                            (( i++ >= 20 )) && { printf "${RED}[!] hyprpaper failed to start${WHITE}\n" >&2; exit 1; }
+                                sleep 0.1
+                        done
+                    fi 
 
-                    i=0
-                    while ! pgrep -x hyprpaper >/dev/null 2>&1; do
-                        (( i++ >= 20 )) && { printf "${RED}[!] hyprpaper failed to start${WHITE}\n" >&2; exit 1; }
-                        sleep 0.1
-                    done
+                    if ! hyprctl hyprpaper preload "$img"; then
+                        printf "${RED}[!] Failed to preload image: %s${WHITE}\n" "$img" >&2
+                        exit 1
+                    fi
+
+                    if [[ -n "$MONITOR" ]]; then
+                        if ! hyprctl hyprpaper wallpaper "$MONITOR,$img"; then
+                            printf "${RED}[!] Failed to set wallpaper on %s${WHITE}\n" "$MONITOR" >&2
+                            exit 1
+                        fi
+                    else
+                        if ! hyprctl hyprpaper wallpaper ",$img"; then
+                            printf "${RED}[!] Failed to set wallpaper${WHITE}\n" >&2
+                            exit 1
+                        fi
+                    fi
+
+                    hyprctl hyprpaper unload unused >/dev/null 2>&1 || true
                     ;;
                 swaybg)
-                    pkill swaybg 2>/dev/null || true
-                    
-                    local i=0
-                    while pgrep -x swaybg >/dev/null 2>&1; do
-                        (( i++ >= 20 )) && { printf "${RED}[!] swaybg failed to stop${WHITE}\n" >&2; exit 1; }
-                        sleep 0.05
-                    done
-                    
-                    swaybg -i "$img" -m fill &
-                    
-                    i=0
-                    while ! pgrep -x swaybg >/dev/null 2>&1; do
-                        (( i++ >= 20 )) && { printf "${RED}[!] swaybg failed to start${WHITE}\n" >&2; exit 1; }
-                        sleep 0.05
-                    done
+                    if [[ "$ENV" == "sway" ]]; then
+                        local target="${MONITOR:-*}"
+                        swaymsg output "$target" bg "$img" fill >/dev/null 2>&1
+                    else
+                        pkill swaybg 2>/dev/null || true
+
+                        local i=0
+                        while pgrep -x swaybg >/dev/null 2>&1; do
+                            (( i++ >= 20 )) && { printf "${RED}[!] swaybg failed to stop${WHITE}\n" >&2; exit 1; }
+                            sleep 0.05
+                        done
+
+                        swaybg -i "$img" -m fill &
+
+                        i=0
+                        while ! pgrep -x swaybg >/dev/null 2>&1; do
+                            (( i++ >= 20 )) && { printf "${RED}[!] swaybg failed to start${WHITE}\n" >&2; exit 1; }
+                            sleep 0.05
+                        done
+                    fi
                     ;;
                 wpaperd)
                     if command -v wpaperctl >/dev/null 2>&1; then
@@ -474,13 +524,21 @@ EOF
                     feh --bg-fill "$img"
                     ;;
                 nitrogen)
-                    nitrogen --set-zoom-fill "$img"
+                    if [[ -n "$MONITOR" ]]; then
+                        nitrogen --set-zoom-fill "$img" --head="$MONITOR"
+                    else
+                        nitrogen --set-zoom-fill "$img"
+                    fi
                     ;;
                 hsetroot)
                     hsetroot -fill "$img"
                     ;;
                 xwallpaper)
-                    xwallpaper --zoom "$img"
+                    if [[ -n "$MONITOR" ]]; then
+                        xwallpaper --output "$MONITOR" --zoom "$img"
+                    else
+                        xwallpaper --zoom "$img"
+                    fi
                     ;;
                 *)
                     printf "${RED}[!] Unknown setter: ${SETTER}${WHITE}\n" >&2
@@ -554,6 +612,9 @@ display_info() {
 
     printf "${ORANGE}[*] Setting wallpaper in ${GREEN}${session_name}${ORANGE} session${WHITE}\n"
     printf "${ORANGE}[*] Using setter : ${MAGENTA}${SETTER}${WHITE}\n"
+    if [[ -n "$MONITOR" ]]; then
+        printf "${ORANGE}[*] Target Monitor : ${MAGENTA}${MONITOR}${WHITE}\n"
+    fi
 }
 
 ## Main
@@ -585,7 +646,7 @@ if [[ "$1" == "rm" ]]; then
 fi
 
 ## Get Options
-parsed=$(getopt -o "hplrs:S:" --long "help,pywal,list,random,style:,setter:" -n "$(basename "$0")" -- "$@") || {
+parsed=$(getopt -o "hplrm:s:S:" --long "help,pywal,list,random,monitor:,style:,setter:" -n "$(basename "$0")" -- "$@") || {
     printf "${RED}[!] Run ${GREEN}$(basename "$0") --help${RED} for usage.${WHITE}\n" >&2
     exit 1
 }
@@ -600,6 +661,7 @@ while true; do
         -r|--random)   RANDOM_MODE=true; shift ;;
         -s|--style)    STYLE="$2"; shift 2 ;;
         -S|--setter)   SETTER="$2"; shift 2 ;;
+        -m|--monitor)  MONITOR="$2"; shift 2 ;;
         --) shift; break ;;
         *) break ;;
     esac
@@ -614,6 +676,7 @@ if [[ -n "$STYLE" ]]; then
     detect_environment
     choose_setter
     check_style "$STYLE"
+    validate_monitor
     display_info
     main
 else
