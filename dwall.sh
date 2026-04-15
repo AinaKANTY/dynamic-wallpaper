@@ -443,35 +443,32 @@ apply_wallpaper() {
                     fi
                     ;;
                 hyprpaper)
-                    if ! pgrep -x hyprpaper >/dev/null 2>&1; then
-                        printf "${ORANGE}[*] Starting hyprpaper daemon...${WHITE}\n"
-                        hyprpaper >/dev/null 2>&1 &
-
-                        local i=0
-                        while ! hyprctl hyprpaper wallpaper >/dev/null 2>&1; do
-                            (( i++ >= 20 )) && { printf "${RED}[!] hyprpaper failed to start${WHITE}\n" >&2; exit 1; }
-                                sleep 0.1
-                        done
-                    fi 
-
-                    if ! hyprctl hyprpaper preload "$img"; then
-                        printf "${RED}[!] Failed to preload image: %s${WHITE}\n" "$img" >&2
-                        exit 1
-                    fi
-
-                    if [[ -n "$MONITOR" ]]; then
-                        if ! hyprctl hyprpaper wallpaper "$MONITOR,$img"; then
-                            printf "${RED}[!] Failed to set wallpaper on %s${WHITE}\n" "$MONITOR" >&2
-                            exit 1
+                    if hyprctl hyprpaper preload "$img" 2>&1 | grep -q "invalid hyprpaper request"; then
+                        if [[ -n "$MONITOR" ]]; then
+                            if ! hyprctl hyprpaper wallpaper "$MONITOR,$img"; then
+                                printf "${RED}[!] Failed to set wallpaper on %s${WHITE}\n" "$MONITOR" >&2
+                                exit 1
+                            fi
+                        else
+                            if ! hyprctl hyprpaper wallpaper ",$img"; then
+                                printf "${RED}[!] Failed to set wallpaper${WHITE}\n" >&2
+                                exit 1
+                            fi
                         fi
                     else
-                        if ! hyprctl hyprpaper wallpaper ",$img"; then
-                            printf "${RED}[!] Failed to set wallpaper${WHITE}\n" >&2
-                            exit 1
+                        if [[ -n "$MONITOR" ]]; then
+                            if ! hyprctl hyprpaper wallpaper "$MONITOR,$img"; then
+                                printf "${RED}[!] Failed to set wallpaper on %s${WHITE}\n" "$MONITOR" >&2
+                                exit 1
+                            fi
+                        else
+                            if ! hyprctl hyprpaper wallpaper ",$img"; then
+                                printf "${RED}[!] Failed to set wallpaper${WHITE}\n" >&2
+                                exit 1
+                            fi
                         fi
+                        hyprctl hyprpaper unload unused >/dev/null 2>&1 || true
                     fi
-
-                    hyprctl hyprpaper unload unused >/dev/null 2>&1 || true
                     ;;
                 swaybg)
                     if [[ "$ENV" == "sway" ]]; then
