@@ -12,14 +12,17 @@
 
 ![gif](https://raw.githubusercontent.com/adi1090x/files/master/dynamic-wallpaper/main.gif) 
 
-### Overview
+### Features & Overview
 
 - **Wallpaper setter**: Automatically detected based on your environment.
-- **Multi-environment**: Automatically detects and supports your DE/WM.
-- **Target specific monitors**: Apply a wallpaper to a specific screen using the `--monitor` flag (supports Hyprland, Sway, KDE, and XFCE).
+- **Multi-environment**: Automatically detects and supports your DE/WM (Wayland & X11).
+- **Target specific monitors**: Apply a wallpaper to a specific screen using the `-m` or `--monitor` flag (supports Hyprland, Sway, KDE, and XFCE).
+- **Random Selection**: Pick a random style from your installed ones using the `-r` or `--random` flag.
+- **Manage Styles**: Easily remove an installed style using the `dwall rm <style>` subcommand.
 - **Smart Time Fallback**: If an image for the current hour is missing, `dwall` automatically falls back to the previous available hour. You don't need exactly 24 images!
 - **Multi-Format Auto-detection**: Seamlessly searches for `.jpg`, `.jpeg`, `.png`, `.webp`, and `.gif` formats simultaneously.
-- **Dynamic Theming**: Supports **Matugen** (default) and **Pywal** (via `-p` flag) for automatic color scheme generation (optional).
+- **Dynamic Theming**: Supports **Matugen** (default) and **Pywal** (via `-p` flag) for automatic color scheme generation.
+- **Safety First**: Features a robust `flock` instance locking system to prevent overlapping runs, along with clean exits on system signals.
 - **Scheduler**: Compatible with **Systemd Timers** and **Cronie**.
 
 ### Supported Environments
@@ -29,6 +32,9 @@
 ![Sway](https://img.shields.io/badge/Sway-supported-blue?style=flat-square)
 ![Wayfire](https://img.shields.io/badge/Wayfire-supported-blue?style=flat-square)
 ![Niri](https://img.shields.io/badge/Niri-supported-blue?style=flat-square)
+![Cosmic](https://img.shields.io/badge/Cosmic-supported-blue?style=flat-square)
+![River](https://img.shields.io/badge/River-supported-blue?style=flat-square)
+![Labwc](https://img.shields.io/badge/Labwc-supported-blue?style=flat-square)
 ![Wayland](https://img.shields.io/badge/Wayland%20Generic-supported-blue?style=flat-square)
 
 #### X11
@@ -38,6 +44,7 @@
 ![MATE](https://img.shields.io/badge/MATE-supported-green?style=flat-square)
 ![Cinnamon](https://img.shields.io/badge/Cinnamon-supported-red?style=flat-square)
 ![LXDE](https://img.shields.io/badge/LXDE-supported-yellow?style=flat-square)
+![Enlightenment](https://img.shields.io/badge/Enlightenment-supported-lightgrey?style=flat-square)
 ![X11](https://img.shields.io/badge/X11%20Generic-supported-lightgrey?style=flat-square)
 
 ### Color Generation (optional)
@@ -68,6 +75,22 @@ cd dynamic-wallpaper
 ```bash
 chmod +x install.sh
 ./install.sh
+```
+
+### Usage Options
+
+```bash
+Usage: dwall [OPTION...]
+       dwall rm <style>
+
+Options:
+   -h, --help            Show help message
+   -p, --pywal           Use pywal to set terminal colors instead of matugen
+   -s, --style <style>   Name of the style to apply
+   -S, --setter <setter> Force a specific wallpaper setter
+   -m, --monitor <name>  Target a specific monitor (ex: DP-1, eDP-1)
+   -l, --list            List available styles
+   -r, --random          Pick a random style
 ```
 
 ### Automation
@@ -164,19 +187,19 @@ general {
 
 1. Download a wallpaper set you like.
 2. Rename the wallpapers to match the hours of the day: `0` to `23` (e.g., `0.jpg` for midnight, `12.png` for noon). 
-   > **Note:** Thanks to the **Smart Fallback** feature, you don't need exactly 24 images! If you only have images for `6`, `12`, and `18`, the script will automatically keep showing `6.jpg` until it hits `12:00`.
+   > **Note:** Thanks to the **Smart Fallback** feature, you don't need exactly 24 images! If you only have images for `6`, `12`, and `18`, the script will automatically keep showing `6.jpg` until noon.
 3. Make a new directory in `/usr/share/dynamic-wallpaper/images/` (e.g., `mystyle`) and copy your images into it.
 4. Run the program to test: `dwall -s mystyle`.
 
 **`Tips`**
 - You can use `dwall` to change between your favorite wallpapers every hour.
-- You can use `dwall` as picture slide, which can set your favorite photos as wallpaper every hour or every 15 minutes. Just create an appropriate timer.
+- You can use `dwall` as a picture slide, which can set your favorite photos as wallpaper every hour or every 15 minutes. Just create an appropriate timer.
 
 ### Use HEIC Images
 
-You may also want to use wallpapers from [Dynamic Wallpaper Club](https://dynamicwallpaper.club/). To do so, you need to convert `.heic` image file to either png or jpg format. Download a `.heic` format dynamic wallpaper and extract it.
+You may also want to use wallpapers from [Dynamic Wallpaper Club](https://dynamicwallpaper.club/). To do so, you need to convert `.heic` image file to either png or jpg format. Download a `.heic` image and extract it. 
 
-- First install `heif-convert` on your system - 
+- First install `heif-convert` on your system:
 ```bash
 # Arch/Manjaro
 sudo pacman -S libheif

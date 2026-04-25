@@ -611,9 +611,14 @@ _setter_hyprpaper() {
         _close_lock_fd
         hyprpaper > /dev/null 2>&1 &
 
-        local max_attempts=20 # 20 attempts * 0.1s = 2 seconds max wait
+        local max_attempts=100
         local attempt=0
         while ! hyprctl hyprpaper listloaded >/dev/null 2>&1; do
+            if ! pgrep -x "hyprpaper" > /dev/null; then
+                printf "${RED}[!] hyprpaper daemon failed to start${WHITE}\n" >&2
+                exit 1
+            fi
+            
             if (( attempt++ >= max_attempts )); then
                 printf "${RED}[!] Timed out waiting for hyprpaper daemon to start${WHITE}\n" >&2
                 exit 1
@@ -806,13 +811,18 @@ apply_colors() {
             printf "${RED}[!] pywal (wal) is not installed, but -p was passed.${WHITE}\n" >&2
         fi
     elif command -v matugen >/dev/null 2>&1; then
-        if matugen image "$image" >/dev/null 2>&1; then
-            printf "${CYAN}[*] matugen colors applied.${WHITE}\n"
+        local matugen_config="${XDG_CONFIG_HOME:-$HOME/.config}/matugen/config.toml"
+        if [[ -f "$matugen_config" ]]; then
+            if matugen image "$image" >/dev/null 2>&1; then
+                printf "${CYAN}[*] matugen colors applied.${WHITE}\n"
+            else
+                printf "${ORANGE}[!] matugen failed to generate colors (check your matugen config).${WHITE}\n" >&2
+            fi
         else
-            printf "${ORANGE}[!] matugen failed to generate colors (check your matugen config).${WHITE}\n" >&2
+            printf "${ORANGE}[*] matugen installed but no config.toml found. Skipping colors.${WHITE}\n"
         fi
     else
-        printf "${ORANGE}[*] No default color generator (matugen) found. Skipping colors.${WHITE}\n"
+        printf "${ORANGE}[*] No color generator found. Skipping colors.${WHITE}\n"
     fi
 }
 
