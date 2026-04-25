@@ -24,8 +24,7 @@
 #### Roadmap (TODO)
 
 - [ ] **Multi-monitor support** — Set a different wallpaper per screen
-- [ ] **Plugin support** — To have more functionality while remaining lightweight
-- [ ] **Weather-aware wallpapers** — A plugin for detect current weather and location to automatically overlay or switch wallpapers matching real-time weather conditions (rain, sun, snow, fog...)
+- [ ] **Weather-aware wallpapers** — Detect current weather and location to automatically overlay
 
 ### Supported Environments
 
@@ -51,8 +50,9 @@
 
 The script uses Matugen by default if installed, and falls back to Pywal if Matugen does not exist.
 
-### Dependencies
+### Requirement
 
+- **`bash` 4.0.+**
 - **`systemd`** or **`cronie`**: For the hourly timer.
 - **Wallpaper Setters** (install at least one based on your environment if not using a full DE):
   - *Wayland*: `awww`, `hyprpaper`, `swaybg`, `wpaperd`, or `wbg`.

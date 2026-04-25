@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -euo pipefail
+
 ## Author  : Aditya Shakya (adi1090x), Aina KANTY (@AinaKANTY)
 ## Mail    : adi1090x@gmail.com, aina.kanty9@gmail.com
 ## Github  : @adi1090x, @AinaKANTY
@@ -17,66 +19,79 @@ REDBG="$(printf '\033[41m')"      GREENBG="$(printf '\033[42m')"
 ORANGEBG="$(printf '\033[43m')"   BLUEBG="$(printf '\033[44m')"
 MAGENTABG="$(printf '\033[45m')"  CYANBG="$(printf '\033[46m')"
 WHITEBG="$(printf '\033[47m')"    BLACKBG="$(printf '\033[40m')"
+RESET="$(printf '\033[0m')"
 
 ## Wallpaper directory
 DIR="${DWALL_DIR:-/usr/share/dynamic-wallpaper/images}"
 
-## Default values
-ENV=""
-STYLE=""
-PYWAL=""
-RANDOM_MODE=""
-SETTER=""
-MONITOR=""
+declare -A CTX=(
+    [env]=""
+    [style]=""
+    [setter]=""
+    [monitor]=""
+    [pywal]=""
+    [random_mode]=""
+)
 
-## Wordsplit in ZSH
-set -o shwordsplit 2>/dev/null
 
-## Strict mode
-set -euo pipefail
 
-## Reset terminal colors
+## ---------------------------------------------------------------------------
+## Terminal / Signal helpers
+## ---------------------------------------------------------------------------
+
 reset_color() {
-	tput sgr0   # reset attributes
-	tput op     # reset color
+    if [[ -n "${TERM:-}" && "${TERM:-}" != "dumb" ]]; then
+        printf "%s" "$RESET"
+    fi
 }
 
-## Script Termination
+cleanup_lock() {
+    local lock_file="${XDG_RUNTIME_DIR:-/tmp}/dwall-$(id -u).lock"
+    [[ -f "$lock_file" ]] && rm -f "$lock_file"
+}
+
 exit_on_signal_SIGINT() {
     printf "${RED}\n\n%s\n\n" "[!] Program Interrupted.\n" >&2
     reset_color
+    cleanup_lock
     exit 130
 }
 
 exit_on_signal_SIGTERM() {
     printf "${RED}\n\n%s\n\n" "[!] Program Terminated.\n" >&2
     reset_color
+    cleanup_lock
     exit 143
 }
 
 trap exit_on_signal_SIGINT SIGINT
 trap exit_on_signal_SIGTERM SIGTERM
+trap cleanup_lock EXIT
 
-## List available styles
-list_styles() {
+## ---------------------------------------------------------------------------
+## Style management
+## ---------------------------------------------------------------------------
+
+get_styles() {
+    local -n _styles_ref="$1"
     if [[ ! -d "$DIR" ]]; then
-        printf "${RED}[!] No styles available (directory not found: %s)${WHITE}\n" "$DIR" >&2
+        printf "${RED}[!] Wallpaper directory not found: %s${WHITE}\n" "$DIR" >&2
         exit 1
     fi
-
-    local styles
-    readarray -d "" styles < <(find "$DIR" -mindepth 1 -maxdepth 1 -type d -printf "%f\0" 2>/dev/null)
-
-    if [[ ${#styles[@]} -eq 0 ]]; then
+    readarray -d "" _styles_ref < <(find "$DIR" -mindepth 1 -maxdepth 1 -type d -printf "%f\0" 2>/dev/null)
+    if [[ ${#_styles_ref[@]} -eq 0 ]]; then
         printf "${RED}[!] No styles found in %s${WHITE}\n" "$DIR" >&2
         exit 1
     fi
- 
+}
+
+list_styles() {
+    local styles
+    get_styles styles
     printf -- "${ORANGE}%s  " "${styles[@]}"
     printf -- "\n${WHITE}"
 }
 
-## Remove a style
 remove_style() {
     local style="$1"
 
@@ -101,6 +116,12 @@ remove_style() {
     fi
 
     printf "${ORANGE}[!] This will permanently delete: ${RED}${target}${WHITE}\n"
+
+    if [[ ! -t 0 ]]; then
+        printf "${RED}[!] remove_style requires an interactive terminal (stdin is not a tty).${WHITE}\n" >&2
+        exit 1
+    fi
+
     read -r -p "Are you sure? [y/n] " confirm
 
     if [[ "${confirm,,}" != "y" ]]; then
@@ -110,37 +131,46 @@ remove_style() {
 
     if [[ -w "$target" ]]; then
         rm -rf "$target"
+        printf "${GREEN}[*] Style '${style}' removed successfully.${WHITE}\n"
     else
-        sudo rm -rf "$target"
-    fi
-    printf "${GREEN}[*] Style '${style}' removed successfully.${WHITE}\n"
-}
-
-## Pick a random style
-random_style() {
-    local styles
-
-    readarray -d "" styles < <(find "$DIR" -mindepth 1 -maxdepth 1 -type d -printf "%f\0" 2>/dev/null)
-
-    if [[ ${#styles[@]} -eq 0 ]]; then
-        printf "${RED}[!] No styles found in ${DIR}${WHITE}\n" >&2
+        printf "${ORANGE}[!] Directory requires elevated privileges to delete.${WHITE}\n"
+        printf "${ORANGE}[!] Please run: sudo %s rm %s${WHITE}\n" "$0" "$style"
         exit 1
     fi
-
-    STYLE="${styles[RANDOM % ${#styles[@]}]}"
-    printf "${ORANGE}[*] Random style selected: ${MAGENTA}${STYLE}${WHITE}\n"
 }
 
-## Usage
-usage() {
-	clear
+random_style() {
+    local styles
+    get_styles styles
+    CTX[style]="${styles[RANDOM % ${#styles[@]}]}"
+    printf "${ORANGE}[*] Random style selected: ${MAGENTA}${CTX[style]}${WHITE}\n"
+}
 
+check_style() {
+    local style="$1"
+    if [[ -d "$DIR/$style" ]]; then
+        printf "${BLUE}[*] Using style : ${MAGENTA}${style}${WHITE}\n"
+    else
+        printf "${RED}[!] Invalid style name : ${GREEN}${style}${WHITE}\n" >&2
+        local styles
+        get_styles styles
+        printf "${RED}[!] Available styles are : ${ORANGE}${styles[*]}${WHITE}\n" >&2
+        exit 1
+    fi
+}
+
+## ---------------------------------------------------------------------------
+## Usage
+## ---------------------------------------------------------------------------
+
+usage() {
+    clear
     cat <<- EOF
 		${RED}╺┳┓╻ ╻┏┓╻┏━┓┏┳┓╻┏━╸   ${GREEN}╻ ╻┏━┓╻  ╻  ┏━┓┏━┓┏━┓┏━╸┏━┓
 		${RED} ┃┃┗┳┛┃┗┫┣━┫┃┃┃┃┃     ${GREEN}┃╻┃┣━┫┃  ┃  ┣━┛┣━┫┣━┛┣╸ ┣┳┛
 		${RED}╺┻┛ ╹ ╹ ╹╹ ╹╹ ╹╹┗━╸   ${GREEN}┗┻┛╹ ╹┗━╸┗━╸╹  ╹ ╹╹  ┗━╸╹┗╸${WHITE}
 
-		Dwall V0.4.0 : Set wallpapers according to current time.
+		Dwall V0.4.2 : Set wallpapers according to current time.
 		Developed By : Aditya Shakya (@adi1090x) and forked by Aina KANTY (@AinaKANTY).
 
 		Usage : $(basename "$0") [OPTION...]
@@ -151,7 +181,7 @@ usage() {
 		   -p, --pywal	           Use pywal to set wallpaper
 		   -s, --style <style>	   Name of the style to apply
 		   -S, --setter <setter>   Force a specific wallpaper setter
-		   -m, --monitor <name>    Target a specific monitor (ex: DP-1, eDP-1)
+		   -m, --monitor <n>    Target a specific monitor (ex: DP-1, eDP-1)
 		   -l, --list              List available styles
 		   -r, --random            Pick a random style
 
@@ -164,16 +194,20 @@ usage() {
     list_styles
 }
 
+## ---------------------------------------------------------------------------
+## Environment detection
+## ---------------------------------------------------------------------------
+
 declare -A SETTER_PRIORITY=(
     # --- WAYLAND ---
-    [hyprland]="awww hyprpaper swaybg wpaperd wbg"
-    [sway]="swaybg awww wpaperd wbg"
-    [cosmic]="cosmic-bg awww swaybg wpaperd wbg"
-    [niri]="awww swaybg wpaperd wbg"
-    [river]="awww swaybg wpaperd wbg"
-    [labwc]="awww swaybg wpaperd wbg"
-    [wayfire]="awww swaybg wpaperd wbg"
-    [wayland-generic]="swaybg awww wpaperd"
+    [hyprland]="hyprpaper awww swaybg wbg"
+    [sway]="swaybg awww wbg"
+    [cosmic]="awww swaybg wbg"
+    [niri]="awww swaybg wbg"
+    [river]="awww swaybg wbg"
+    [labwc]="awww swaybg wbg"
+    [wayfire]="awww swaybg wbg"
+    [wayland-generic]="swaybg awww"
 
     # --- DESKTOP ENVIRONMENTS ---
     [gnome]="gsettings"
@@ -194,354 +228,463 @@ declare -A SETTER_PRIORITY=(
     [x11-generic]="feh nitrogen hsetroot xwallpaper"
 )
 
-## Detect environment
 detect_environment() {
     if [[ -z "${XDG_RUNTIME_DIR:-}" ]]; then
         export XDG_RUNTIME_DIR="/run/user/$(id -u)"
     fi
-    
+
     if [[ -z "${WAYLAND_DISPLAY:-}" && -z "${DISPLAY:-}" ]]; then
-        local wld
-        wld=$(find /run/user/"$(id -u)" -maxdepth 1 -name 'wayland-*' -not -name '*.lock' -printf "%f\n" 2>/dev/null | sort | head -n 1)
-        if [[ -n "$wld" ]]; then
-            export WAYLAND_DISPLAY="$wld"
+        for sock in "wayland-0" "wayland-1"; do
+            if [[ -S "${XDG_RUNTIME_DIR}/$sock" ]]; then
+                export WAYLAND_DISPLAY="$sock"
+                break
+            fi
+        done
+        
+        if [[ -z "${WAYLAND_DISPLAY:-}" ]]; then
+            local wld
+            wld=$(find /run/user/"$(id -u)" -maxdepth 1 -name 'wayland-[0-9]*' -not -name '*.lock' -printf "%T@ %f\n" 2>/dev/null | sort -n | tail -n 1 | cut -d' ' -f2 || true)
+            if [[ -n "$wld" ]]; then
+                export WAYLAND_DISPLAY="$wld"
+            fi
         fi
     fi
 
+    local env=""
+
     if [[ "${XDG_SESSION_TYPE:-}" == "wayland" || -n "${WAYLAND_DISPLAY:-}" ]]; then
         if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then
-            ENV="hyprland"
+            env="hyprland"
         elif [[ -n "${SWAYSOCK:-}" ]]; then
-            ENV="sway"
-        elif [[ -n "${COSMIC_SESSION:-}" ]]; then # TO BE CHECKED
-            ENV="cosmic"
+            env="sway"
+        elif [[ -n "${COSMIC_SESSION:-}" ]]; then
+            env="cosmic"
         elif [[ -n "${NIRI_SOCKET:-}" ]]; then
-            ENV="niri"
+            env="niri"
         elif [[ -n "${WAYFIRE_SOCKET:-}" ]]; then
-            ENV="wayfire"
-        elif pgrep -x river >/dev/null 2>&1; then # TO BE CHECKED: process name
-            ENV="river"
-        elif pgrep -x labwc >/dev/null 2>&1; then # TO BE CHECKED: process name
-            ENV="labwc"
+            env="wayfire"
+        elif pgrep -x river >/dev/null 2>&1; then
+            env="river"
+        elif pgrep -x labwc >/dev/null 2>&1; then
+            env="labwc"
         else
-            ENV="wayland-generic"
+            env="wayland-generic"
         fi
 
     elif [[ "${XDG_SESSION_TYPE:-}" == "x11" || -n "${DISPLAY:-}" ]]; then
         case "${XDG_CURRENT_DESKTOP:-}" in
             *GNOME|*budgie|*Deepin|*Pantheon|*unity*)
-                ENV="gnome" ;;
+                env="gnome" ;;
             *KDE|*Plasma*)
-                ENV="kde" ;;
+                env="kde" ;;
             *XFCE*)
-                ENV="xfce" ;;
+                env="xfce" ;;
             MATE)
-                ENV="mate" ;;
+                env="mate" ;;
             X-Cinnamon)
-                ENV="cinnamon" ;;
+                env="cinnamon" ;;
             LXDE)
-                ENV="lxde" ;;
+                env="lxde" ;;
             ENLIGHTENMENT)
-                ENV="enlightenment";;
+                env="enlightenment";;
             *)
-                ENV="x11-generic" ;;
+                env="x11-generic" ;;
         esac
 
-        if [[ "$ENV" == "x11-generic" ]]; then
+        if [[ "$env" == "x11-generic" ]]; then
             case "$(basename "${DESKTOP_SESSION:-}")" in
                 gnome|ubuntu|budgie|deepin|pantheon|unity|gnome-flashback|pop|zorin)
-                    ENV="gnome" ;;
+                    env="gnome" ;;
                 plasma|kde-plasma|kde)
-                    ENV="kde" ;;
+                    env="kde" ;;
                 xfce|xfce4)
-                    ENV="xfce" ;;
+                    env="xfce" ;;
                 mate)
-                    ENV="mate" ;;
+                    env="mate" ;;
                 cinnamon)
-                    ENV="cinnamon" ;;
+                    env="cinnamon" ;;
                 lxde)
-                    ENV="lxde" ;;
+                    env="lxde" ;;
                 enlightenment)
-                    ENV="enlightenment";;
+                    env="enlightenment";;
                 *)
-                    ENV="x11-generic" ;;
+                    env="x11-generic" ;;
             esac
         fi
     else
-        printf "${RED}[!] Error: Environment not supported at this time${WHITE}\n"; exit 1
+        env="unknown"
+        printf "${ORANGE}[!] Warning: Environment not recognized. You may need to use --setter (-S)${WHITE}\n" >&2
     fi
-    printf "${ORANGE}[*] Detected environment: ${MAGENTA}${ENV}${WHITE}\n"
+
+    CTX[env]="$env"
+    printf "${ORANGE}[*] Detected environment: ${MAGENTA}${CTX[env]}${WHITE}\n"
 }
 
-## Choose wallpaper setter
 choose_setter() {
-    if [[ -n "$SETTER" ]]; then
-        if command -v "$SETTER" >/dev/null 2>&1; then
+    if [[ -n "${CTX[setter]}" ]]; then
+        if command -v "${CTX[setter]}" >/dev/null 2>&1; then
             return
         else
-            printf "${RED}[!] Specified setter not found: ${GREEN}${SETTER}${WHITE}\n" >&2
+            printf "${RED}[!] Specified setter not found: ${GREEN}${CTX[setter]}${WHITE}\n" >&2
             exit 1
         fi
     fi
 
-    for wall_setter in ${SETTER_PRIORITY[$ENV]}; do
-        if command -v "$wall_setter" > /dev/null 2>&1; then
-            SETTER="$wall_setter"
+    if [[ -z "${CTX[env]}" ]]; then
+        printf "${RED}[!] Internal error: environment not detected before choose_setter()${WHITE}\n" >&2
+        exit 1
+    fi
+
+    local wall_setter
+    for wall_setter in ${SETTER_PRIORITY[${CTX[env]}]:-}; do
+        if command -v "$wall_setter" >/dev/null 2>&1; then
+            CTX[setter]="$wall_setter"
             return
         fi
     done
-    printf "${RED}[!] No setters found for your environment: ${GREEN}${ENV}${WHITE}\n" >&2; exit 1
+    printf "${RED}[!] No setters found for your environment: ${GREEN}${CTX[env]}${WHITE}\n" >&2
+    exit 1
 }
 
-## Check valid style
-check_style() {
-    if [[ ! -d "$DIR" ]]; then
-        printf "${RED}[!] Wallpaper directory not found: ${GREEN}${DIR}${WHITE}\n" >&2
-        exit 1
-    fi
+## ---------------------------------------------------------------------------
+## Monitor validation
+## ---------------------------------------------------------------------------
 
-    if [[ -d "$DIR/$1" ]]; then
-        printf "${BLUE}[*] Using style : ${MAGENTA}$1${WHITE}\n"
-    else
-        printf "${RED}[!] Invalid style name : ${GREEN}$1${WHITE}\n" >&2
-        local styles
-        readarray -t styles < <(find "$DIR" -mindepth 1 -maxdepth 1 -type d -printf "%f\n" 2>/dev/null)
-        printf "${RED}[!] Available styles are : ${ORANGE}${styles[*]}${WHITE}\n" >&2
-        exit 1
-    fi
+validate_monitor() {
+    [[ -z "${CTX[monitor]}" ]] && return 0
+
+    case "${CTX[env]}" in
+        hyprland)
+            if command -v jq >/dev/null 2>&1; then
+                if ! hyprctl monitors -j | jq -e --arg m "${CTX[monitor]}" '.[] | select(.name == $m)' >/dev/null 2>&1; then
+                    printf "${RED}[!] Monitor '%s' not found${WHITE}\n" "${CTX[monitor]}" >&2
+                    exit 1
+                fi
+            else
+                if ! hyprctl monitors -j | grep -Eq "\"name\":[[:space:]]*\"${CTX[monitor]}\""; then
+                    printf "${RED}[!] Monitor '%s' not found${WHITE}\n" "${CTX[monitor]}" >&2
+                    exit 1
+                fi
+            fi
+            ;;
+        kde)
+            local kde_screens
+            if command -v jq >/dev/null 2>&1; then
+                readarray -t kde_screens < <(
+                    "${CTX[setter]}" org.kde.plasmashell /PlasmaShell \
+                        org.kde.PlasmaShell.evaluateScript \
+                        "print(JSON.stringify(desktops().map(function(d){return d.screen;})))" \
+                        2>/dev/null | jq -r '.[]' 2>/dev/null || true
+                )
+            fi
+            if [[ ${#kde_screens[@]} -gt 0 ]]; then
+                local found=0
+                local s
+                for s in "${kde_screens[@]}"; do
+                    [[ "$s" == "${CTX[monitor]}" ]] && { found=1; break; }
+                done
+                if [[ $found -eq 0 ]]; then
+                    printf "${RED}[!] Monitor '%s' not found in KDE desktops${WHITE}\n" "${CTX[monitor]}" >&2
+                    exit 1
+                fi
+            else
+                printf "${ORANGE}[!] Warning: could not verify monitor '%s' for KDE, proceeding.${WHITE}\n" "${CTX[monitor]}" >&2
+            fi
+            ;;
+        xfce)
+            local xfce_props
+            if xfce_props=$(xfconf-query -c xfce4-desktop -l 2>/dev/null); then
+                if ! printf '%s\n' "$xfce_props" | grep -qi "${CTX[monitor]}"; then
+                    printf "${RED}[!] Monitor '%s' not found in XFCE configuration.${WHITE}\n" "${CTX[monitor]}" >&2
+                    exit 1
+                fi
+            else
+                printf "${ORANGE}[!] Warning: could not verify monitor '%s' for XFCE, proceeding.${WHITE}\n" "${CTX[monitor]}" >&2
+            fi
+            ;;
+        *)
+            printf "${ORANGE}[!] Warning: --monitor not natively supported for %s, applying globally.${WHITE}\n" "${CTX[env]}" >&2
+            ;;
+    esac
 }
 
-## Get Image
+## ---------------------------------------------------------------------------
+## Image resolution
+## ---------------------------------------------------------------------------
+
 get_img() {
     local target_hour="$1"
     local formats=("png" "jpg" "jpeg" "webp" "gif")
+    local h i
+
+    if ! find "$DIR/${CTX[style]}" -mindepth 1 -print -quit 2>/dev/null | grep -q .; then
+        printf "${RED}[!] Error: Style directory '%s' is empty or missing.${WHITE}\n" "${CTX[style]}" >&2
+        exit 1
+    fi
 
     for (( i=0; i<24; i++ )); do
-        local h=$(( (target_hour - i + 24) % 24 ))
+        h=$(( (target_hour - i + 24) % 24 ))
 
         for fmt in "${formats[@]}"; do
-            local img="$DIR/$STYLE/${h}.${fmt}"
+            local img="$DIR/${CTX[style]}/${h}.${fmt}"
             if [[ -f "$img" ]]; then
-                echo "$img"
+                printf '%s\n' "$img"
                 return 0
             fi
         done
     done
 
-    printf "${RED}[!] Error: No image found for style '$STYLE' in $DIR/$STYLE/${WHITE}\n" >&2
+    printf "${RED}[!] Error: No image found for style '%s' in %s/%s/${WHITE}\n" \
+        "${CTX[style]}" "$DIR" "${CTX[style]}" >&2
     exit 1
 }
 
-## Set wallpaper KDE
-set_kde() {
-    local safe_img="${1//\'/\\\'}"
-    local target_screen="${2:-}"
+## ---------------------------------------------------------------------------
+## Setter implementations
+## ---------------------------------------------------------------------------
 
-    "$SETTER" org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "
-        var allDesktops = desktops();
-        for (var i = 0; i < allDesktops.length; i++) {
-            var d = allDesktops[i];
-            if ('${target_screen}' !== '' && d.screen != '${target_screen}') continue;
-            d.wallpaperPlugin = 'org.kde.image';
-            d.currentConfigGroup = ['Wallpaper', 'org.kde.image', 'General'];
-            d.writeConfig('Image', 'file://${safe_img}')
-        }
-    " || {
-        printf "${RED}[!] Failed to set KDE wallpaper${WHITE}\n" >&2; exit 1
-    }
-}
-
-validate_monitor() {
-    [[ -z "$MONITOR" ]] && return 0
-
-    case "$ENV" in
-        hyprland)
-            if command -v jq >/dev/null 2>&1; then
-                if ! hyprctl monitors -j | jq -e '.[] | select(.name == "'"$MONITOR"'")' >/dev/null 2>&1; then
-                    printf "${RED}[!] Monitor '%s' not found${WHITE}\n" "$MONITOR" >&2
-                    exit 1
-                fi
-            else
-                if ! hyprctl monitors -j | grep -q "\"name\": \"$MONITOR\""; then
-                    printf "${RED}[!] Monitor '%s' not found${WHITE}\n" "$MONITOR" >&2
-                    exit 1
-                fi
-            fi
-            ;;
-        *)
-            printf "${ORANGE}[!] Warning: --monitor not natively supported for %s, applying globally.${WHITE}\n" "$ENV" >&2
-            ;;
-    esac
-}
-
-## Wallpaper Setter
-apply_wallpaper() {
+_setter_gsettings() {
     local img="$1"
+    local schema
 
-    case "$ENV" in
-        gnome)
-            gsettings set org.gnome.desktop.background picture-uri "file://$img"
-            gsettings set org.gnome.desktop.background picture-uri-dark "file://$img"
-            gsettings set org.gnome.desktop.screensaver picture-uri "file://$img"
-            ;;
-        kde)
-            set_kde "$img" "$MONITOR"
-            ;;
-        xfce)
-            local properties
-            properties=$(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep "workspace0/last-image" || true)
-            
-            if [[ -z "$properties" ]]; then
-                printf "${RED}[!] xfce: no wallpaper properties found via xfconf-query${WHITE}\n" >&2
-                exit 1
-            fi
-            
-            if [[ -n "$MONITOR" ]]; then
-                properties=$(echo "$properties" | grep -i "$MONITOR" || true)
-                if [[ -z "$properties" ]]; then
-                    printf "${RED}[!] xfce: Monitor '%s' not found in configuration.${WHITE}\n" "$MONITOR" >&2
-                    exit 1
-                fi
-            fi
-            
-            for prop in $properties; do
-                xfconf-query -c xfce4-desktop -p "$prop" -s "$img"
-            done
-            ;;
+    case "${CTX[env]}" in
         cinnamon)
             gsettings set org.cinnamon.desktop.background picture-uri "file://$img"
+            gsettings set org.cinnamon.desktop.background picture-uri-dark "file://$img"
             ;;
         mate)
             gsettings set org.mate.background picture-filename "$img"
             ;;
-        lxqt)
-            pcmanfm-qt -w "$img"
-            ;;
-        lxde)
-            pcmanfm --set-wallpaper "$img"
-            ;;
-        enlightenment)
-            enlightenment_remote -desktop-bg-add 0 0 0 0 "$img"
-            ;;
         *)
-            case "$SETTER" in
-                awww)
-                    if ! awww query >/dev/null 2>&1; then
-                        awww-daemon &
+            ## gnome, budgie, deepin, pantheon, unity, gnome-flashback
+            gsettings set org.gnome.desktop.background picture-uri "file://$img"
+            gsettings set org.gnome.desktop.background picture-uri-dark "file://$img"
+            gsettings set org.gnome.desktop.screensaver picture-uri "file://$img"
+            ;;
+    esac
+}
 
-                        local i=0
-                        until awww query >/dev/null 2>&1; do
-                            (( i++ >= 10 )) && { printf "${RED}[!] awww-daemon failed to start${WHITE}\n" >&2; exit 1; }
-                            sleep 0.1
-                        done
-                    fi
+_setter_qdbus() {
+    local img="$1"
+    local monitor="${CTX[monitor]:-}"
 
-                    if [[ -n "$MONITOR" ]]; then
-                        awww img "$img" -o "$MONITOR" --transition-type simple --transition-step 90
-                    else
-                        awww img "$img" --transition-type simple --transition-step 90
-                    fi
-                    ;;
-                hyprpaper)
-                    if hyprctl hyprpaper preload "$img" 2>&1 | grep -q "invalid hyprpaper request"; then
-                        if [[ -n "$MONITOR" ]]; then
-                            if ! hyprctl hyprpaper wallpaper "$MONITOR,$img"; then
-                                printf "${RED}[!] Failed to set wallpaper on %s${WHITE}\n" "$MONITOR" >&2
-                                exit 1
-                            fi
-                        else
-                            if ! hyprctl hyprpaper wallpaper ",$img"; then
-                                printf "${RED}[!] Failed to set wallpaper${WHITE}\n" >&2
-                                exit 1
-                            fi
-                        fi
-                    else
-                        if [[ -n "$MONITOR" ]]; then
-                            if ! hyprctl hyprpaper wallpaper "$MONITOR,$img"; then
-                                printf "${RED}[!] Failed to set wallpaper on %s${WHITE}\n" "$MONITOR" >&2
-                                exit 1
-                            fi
-                        else
-                            if ! hyprctl hyprpaper wallpaper ",$img"; then
-                                printf "${RED}[!] Failed to set wallpaper${WHITE}\n" >&2
-                                exit 1
-                            fi
-                        fi
-                        hyprctl hyprpaper unload unused >/dev/null 2>&1 || true
-                    fi
-                    ;;
-                swaybg)
-                    if [[ "$ENV" == "sway" ]]; then
-                        local target="${MONITOR:-*}"
-                        swaymsg output "$target" bg "$img" fill >/dev/null 2>&1
-                    else
-                        pkill swaybg 2>/dev/null || true
+    DWALL_KDE_IMG="$img" DWALL_KDE_MONITOR="$monitor" \
+        "${CTX[setter]}" org.kde.plasmashell /PlasmaShell \
+        org.kde.PlasmaShell.evaluateScript "
+        var imgPath = env('DWALL_KDE_IMG');
+        var targetMonitor = env('DWALL_KDE_MONITOR');
+        var allDesktops = desktops();
+        for (var i = 0; i < allDesktops.length; i++) {
+            var d = allDesktops[i];
+            if (targetMonitor !== '' && d.screen != targetMonitor) continue;
+            d.wallpaperPlugin = 'org.kde.image';
+            d.currentConfigGroup = ['Wallpaper', 'org.kde.image', 'General'];
+            d.writeConfig('Image', 'file://' + imgPath)
+        }
+    " || {
+        printf "${RED}[!] Failed to set KDE wallpaper${WHITE}\n" >&2
+        exit 1
+    }
+}
 
-                        local i=0
-                        while pgrep -x swaybg >/dev/null 2>&1; do
-                            (( i++ >= 20 )) && { printf "${RED}[!] swaybg failed to stop${WHITE}\n" >&2; exit 1; }
-                            sleep 0.05
-                        done
+_setter_xfconf_query() {
+    local img="$1"
+    local properties
 
-                        swaybg -i "$img" -m fill &
+    if ! properties=$(xfconf-query -c xfce4-desktop -l 2>/dev/null); then
+        printf "${RED}[!] xfce: xfconf-query failed (is XFCE running?)${WHITE}\n" >&2
+        exit 1
+    fi
+    properties=$(printf '%s\n' "$properties" | grep "workspace0/last-image" || true)
 
-                        i=0
-                        while ! pgrep -x swaybg >/dev/null 2>&1; do
-                            (( i++ >= 20 )) && { printf "${RED}[!] swaybg failed to start${WHITE}\n" >&2; exit 1; }
-                            sleep 0.05
-                        done
-                    fi
-                    ;;
-                wpaperd)
-                    if command -v wpaperctl >/dev/null 2>&1; then
-                        wpaperctl set-wallpaper "$img"
-                    else
-                        printf "${RED}[!] wpaperctl not found. Unable to change the background.${WHITE}\n" >&2
-                        exit 1
-                    fi
-                    ;;
-                wbg)
-                    pkill wbg 2>/dev/null || true
-                    
-                    local i=0
-                    while pgrep -x wbg >/dev/null 2>&1; do
-                        (( i++ >= 20 )) && { printf "${RED}[!] wbg failed to stop${WHITE}\n" >&2; exit 1; }
-                        sleep 0.05
-                    done
-                    
-                    wbg "$img" &
-                    
-                    i=0
-                    while ! pgrep -x wbg >/dev/null 2>&1; do
-                        (( i++ >= 20 )) && { printf "${RED}[!] wbg failed to start${WHITE}\n" >&2; exit 1; }
-                        sleep 0.05
-                    done
-                    ;;
-                feh)
-                    feh --bg-fill "$img"
-                    ;;
-                nitrogen)
-                    if [[ -n "$MONITOR" ]]; then
-                        nitrogen --set-zoom-fill "$img" --head="$MONITOR"
-                    else
-                        nitrogen --set-zoom-fill "$img"
-                    fi
-                    ;;
-                hsetroot)
-                    hsetroot -fill "$img"
-                    ;;
-                xwallpaper)
-                    if [[ -n "$MONITOR" ]]; then
-                        xwallpaper --output "$MONITOR" --zoom "$img"
-                    else
-                        xwallpaper --zoom "$img"
-                    fi
-                    ;;
-                *)
-                    printf "${RED}[!] Unknown setter: ${SETTER}${WHITE}\n" >&2
-                    exit 1
-                    ;;
-            esac
+    if [[ -z "$properties" ]]; then
+        printf "${RED}[!] xfce: no wallpaper properties found via xfconf-query${WHITE}\n" >&2
+        exit 1
+    fi
+
+    if [[ -n "${CTX[monitor]}" ]]; then
+        properties=$(printf '%s\n' "$properties" | grep -i "${CTX[monitor]}" || true)
+        if [[ -z "$properties" ]]; then
+            printf "${RED}[!] xfce: Monitor '%s' not found in configuration.${WHITE}\n" "${CTX[monitor]}" >&2
+            exit 1
+        fi
+    fi
+
+    local prop_list
+    readarray -t prop_list <<< "$properties"
+    local prop
+    for prop in "${prop_list[@]}"; do
+        [[ -z "$prop" ]] && continue
+        xfconf-query -c xfce4-desktop -p "$prop" -s "$img"
+    done
+}
+
+_setter_awww() {
+    local img="$1"
+
+    if ! awww query >/dev/null 2>&1; then
+        awww-daemon 2>/tmp/dwall-awww-daemon.log >/dev/null & disown
+
+        local i=0
+        until awww query >/dev/null 2>&1; do
+            if (( i >= 10 )); then
+                printf "${RED}[!] awww-daemon failed to start${WHITE}\n" >&2
+                exit 1
+            fi
+            (( i++ )) || true
+            sleep 0.1
+        done
+    fi
+
+    if [[ -n "${CTX[monitor]}" ]]; then
+        awww img -o "${CTX[monitor]}" "$img" --transition-type simple --transition-step 90
+    else
+        awww img "$img" --transition-type simple --transition-step 90
+    fi
+}
+
+_setter_hyprpaper() {
+    local img="$1"
+
+    if [[ -n "${CTX[monitor]:-}" ]]; then
+        if ! hyprctl hyprpaper wallpaper "${CTX[monitor]},${img}"; then
+            printf "${RED}[!] Failed to set wallpaper on ${CTX[monitor]}${WHITE}\n" >&2
+            exit 1
+        fi
+    else
+        local monitors
+        if command -v jq >/dev/null 2>&1; then
+            readarray -t monitors < <(hyprctl monitors -j | jq -r '.[].name' 2>/dev/null)
+        else
+            readarray -t monitors < <(hyprctl monitors | awk '/^Monitor/ {print $2}')
+        fi
+
+        if [[ ${#monitors[@]} -eq 0 ]]; then
+            printf "${RED}[!] No monitors detected by hyprctl${WHITE}\n" >&2
+            exit 1
+        fi
+
+        for mon in "${monitors[@]}"; do
+            [[ -z "$mon" ]] && continue
+            if ! hyprctl hyprpaper wallpaper "${mon},${img}"; then
+                printf "${RED}[!] Failed to set wallpaper on monitor: %s${WHITE}\n" "$mon" >&2
+            fi
+        done
+    fi
+}
+
+_setter_swaybg() {
+    local img="$1"
+    local pid_file="${XDG_RUNTIME_DIR:-/tmp}/dwall-swaybg.pid"
+
+    if [[ "${CTX[env]}" == "sway" ]]; then
+        local target="${CTX[monitor]:-*}"
+        swaymsg output "$target" bg "$img" fill >/dev/null 2>&1
+    else
+        if [[ -f "$pid_file" ]]; then
+            local old_pid; old_pid=$(cat "$pid_file")
+            if kill -0 "$old_pid" 2>/dev/null; then
+                kill "$old_pid" 2>/dev/null || true
+            fi
+        fi
+
+        swaybg -i "$img" -m fill >/dev/null 2>&1 &
+        local new_pid=$!
+        disown "$new_pid"
+        echo "$new_pid" > "$pid_file"
+    fi
+}
+
+_setter_wpaperctl() {
+    printf "${RED}[!] wpaperd is not supported as a dwall setter.\n" >&2
+    printf "    wpaperctl cannot accept a specific image path at runtime.\n" >&2
+    printf "    Use --setter swaybg, --setter awww, or --setter wbg instead.${WHITE}\n" >&2
+    exit 1
+}
+
+_setter_wbg() {
+    local img="$1"
+    local pid_file="${XDG_RUNTIME_DIR:-/tmp}/dwall-wbg.pid"
+
+    if [[ -f "$pid_file" ]]; then
+        local old_pid; old_pid=$(cat "$pid_file")
+        if kill -0 "$old_pid" 2>/dev/null; then
+            kill "$old_pid" 2>/dev/null || true
+        fi
+    fi
+
+    wbg "$img" >/dev/null 2>&1 &
+    local new_pid=$!
+    disown "$new_pid"
+    echo "$new_pid" > "$pid_file"
+}
+
+_setter_feh() {
+    feh --bg-fill "$1"
+}
+
+_setter_nitrogen() {
+    local img="$1"
+    if [[ -n "${CTX[monitor]}" ]]; then
+        nitrogen --set-zoom-fill "$img" --head="${CTX[monitor]}"
+    else
+        nitrogen --set-zoom-fill "$img"
+    fi
+}
+
+_setter_hsetroot() {
+    hsetroot -fill "$1"
+}
+
+_setter_xwallpaper() {
+    local img="$1"
+    if [[ -n "${CTX[monitor]}" ]]; then
+        xwallpaper --output "${CTX[monitor]}" --zoom "$img"
+    else
+        xwallpaper --zoom "$img"
+    fi
+}
+
+_setter_pcmanfm_qt() {
+    pcmanfm-qt -w "$1"
+}
+
+_setter_pcmanfm() {
+    pcmanfm --set-wallpaper "$1"
+}
+
+_setter_enlightenment_remote() {
+    enlightenment_remote -desktop-bg-add 0 0 0 0 "$1"
+}
+
+_setter_cosmic_bg() {
+    printf "${ORANGE}[!] cosmic-bg runtime wallpaper change not yet supported.${WHITE}\n" >&2
+    exit 1
+}
+
+apply_wallpaper() {
+    local img="$1"
+
+    case "${CTX[setter]}" in
+        gsettings)           _setter_gsettings "$img" ;;
+        qdbus6|qdbus)        _setter_qdbus "$img" ;;
+        xfconf-query)        _setter_xfconf_query "$img" ;;
+        awww)                _setter_awww "$img" ;;
+        hyprpaper)           _setter_hyprpaper "$img" ;;
+        swaybg)              _setter_swaybg "$img" ;;
+        wpaperd)             _setter_wpaperctl "$img" ;;
+        wbg)                 _setter_wbg "$img" ;;
+        feh)                 _setter_feh "$img" ;;
+        nitrogen)            _setter_nitrogen "$img" ;;
+        hsetroot)            _setter_hsetroot "$img" ;;
+        xwallpaper)          _setter_xwallpaper "$img" ;;
+        pcmanfm-qt)          _setter_pcmanfm_qt "$img" ;;
+        pcmanfm)             _setter_pcmanfm "$img" ;;
+        enlightenment_remote) _setter_enlightenment_remote "$img" ;;
+        cosmic-bg)           _setter_cosmic_bg "$img" ;;
+        *)
+            printf "${RED}[!] Unknown setter: %s${WHITE}\n" "${CTX[setter]}" >&2
+            exit 1
             ;;
     esac
 
@@ -549,37 +692,37 @@ apply_wallpaper() {
     apply_colors "$img"
 }
 
-## Update wallpaper cache
+## ---------------------------------------------------------------------------
+## Cache & colors
+## ---------------------------------------------------------------------------
+
 update_cache() {
     local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/dwall"
     local cfile="$cache_dir/current"
-    
+
     [[ ! -d "$cache_dir" ]] && mkdir -p "$cache_dir"
     echo "$1" > "$cfile" || printf "${RED}[!] Failed to update cache${WHITE}\n" >&2
 }
 
-## Apply colors from image
 apply_colors() {
     local image="$1"
 
-    if [[ -n "$PYWAL" ]]; then
+    if [[ -n "${CTX[pywal]}" ]]; then
         if command -v wal >/dev/null 2>&1; then
             wal -i "$image" -n
         else
             printf "${RED}[!] pywal (wal) is not installed, but -p was passed.${WHITE}\n" >&2
         fi
-    elif command -v matugen >/dev/null 2>&1; then
-        matugen image "$image"
-    else
-        printf "${ORANGE}[*] No color generator (matugen/pywal) found.${WHITE}\n"
     fi
 }
 
-## Display Info
+## ---------------------------------------------------------------------------
+## Display info
+## ---------------------------------------------------------------------------
+
 display_info() {
     local session_name
-    case "$ENV" in
-        # --- WAYLAND ---
+    case "${CTX[env]}" in
         hyprland)        session_name="Hyprland" ;;
         sway)            session_name="Sway" ;;
         cosmic)          session_name="Cosmic" ;;
@@ -588,7 +731,6 @@ display_info() {
         labwc)           session_name="Labwc" ;;
         wayfire)         session_name="Wayfire" ;;
         wayland-generic) session_name="Wayland (generic)" ;;
-        # --- DESKTOP ENVIRONMENTS ---
         gnome)           session_name="GNOME" ;;
         kde)             session_name="KDE Plasma" ;;
         xfce)            session_name="XFCE" ;;
@@ -602,79 +744,90 @@ display_info() {
         unity)           session_name="Unity" ;;
         gnome-flashback) session_name="GNOME Flashback" ;;
         enlightenment)   session_name="Enlightenment" ;;
-        # --- GENERIC X11 ---
         x11-generic)     session_name="X11 (generic)" ;;
-        *)               session_name="$ENV" ;;
+        unknown)         session_name="Unknown / Custom" ;;
+        *)               session_name="${CTX[env]}" ;;
     esac
 
-    printf "${ORANGE}[*] Setting wallpaper in ${GREEN}${session_name}${ORANGE} session${WHITE}\n"
-    printf "${ORANGE}[*] Using setter : ${MAGENTA}${SETTER}${WHITE}\n"
-    if [[ -n "$MONITOR" ]]; then
-        printf "${ORANGE}[*] Target Monitor : ${MAGENTA}${MONITOR}${WHITE}\n"
+    printf "${ORANGE}[*] Setting wallpaper in ${GREEN}%s${ORANGE} session${WHITE}\n" "$session_name"
+    printf "${ORANGE}[*] Using setter : ${MAGENTA}%s${WHITE}\n" "${CTX[setter]}"
+    if [[ -n "${CTX[monitor]}" ]]; then
+        printf "${ORANGE}[*] Target Monitor : ${MAGENTA}%s${WHITE}\n" "${CTX[monitor]}"
     fi
 }
 
+## ---------------------------------------------------------------------------
 ## Main
+## ---------------------------------------------------------------------------
+
 main() {
     local h=$((10#$(date +%H)))
     local current_image
 
-    current_image=$(get_img "$h") || exit 1
+    local lock_file="${XDG_RUNTIME_DIR:-/tmp}/dwall-$(id -u).lock"
+    exec 9>"$lock_file"
+    if ! flock -n 9; then
+        printf "${ORANGE}[*] Another instance of dwall is running, exiting.${WHITE}\n" >&2
+        exit 0
+    fi
 
+    current_image=$(get_img "$h") || exit 1
     apply_wallpaper "$current_image"
+    display_info
 
     reset_color
     exit 0
 }
+
+## ---------------------------------------------------------------------------
+## Entry point
+## ---------------------------------------------------------------------------
 
 if [[ $# -eq 0 ]]; then
     usage
     exit 1
 fi
 
-## Handle subcommands
 if [[ "$1" == "rm" ]]; then
     if [[ -z "${2:-}" ]]; then
-        printf "${RED}[!] Usage: $(basename "$0") rm <style>${WHITE}\n" >&2
+        printf "${RED}[!] Usage: %s rm <style>${WHITE}\n" "$(basename "$0")" >&2
         exit 1
     fi
     remove_style "$2"
     exit 0
 fi
 
-## Get Options
-parsed=$(getopt -o "hplrm:s:S:" --long "help,pywal,list,random,monitor:,style:,setter:" -n "$(basename "$0")" -- "$@") || {
-    printf "${RED}[!] Run ${GREEN}$(basename "$0") --help${RED} for usage.${WHITE}\n" >&2
-    exit 1
-}
-
-eval set -- "$parsed"
-
-while true; do
+while [[ $# -gt 0 ]]; do
     case "$1" in
         -h|--help)     usage; exit 0 ;;
-        -p|--pywal)    PYWAL=true; shift ;;
+        -p|--pywal)    CTX[pywal]=true; shift ;;
         -l|--list)     list_styles; exit 0 ;;
-        -r|--random)   RANDOM_MODE=true; shift ;;
-        -s|--style)    STYLE="$2"; shift 2 ;;
-        -S|--setter)   SETTER="$2"; shift 2 ;;
-        -m|--monitor)  MONITOR="$2"; shift 2 ;;
+        -r|--random)   CTX[random_mode]=true; shift ;;
+        -s|--style)
+            if [[ $# -lt 2 ]]; then
+                printf "${RED}[!] Option %s requires an argument.${WHITE}\n" "$1" >&2
+                exit 1
+            fi
+            CTX[style]="$2"
+            shift 2
+            ;;
+        -S|--setter)   CTX[setter]="$2"; shift 2 ;;
+        -m|--monitor)  CTX[monitor]="$2"; shift 2 ;;
         --) shift; break ;;
+        -*) printf "${RED}[!] Unknown option: %s\nRun %s --help for usage.${WHITE}\n" "$1" "$(basename "$0")" >&2; exit 1 ;;
         *) break ;;
     esac
 done
 
-## Run
-if [[ -n "$RANDOM_MODE" && -z "$STYLE" ]]; then
+if [[ -n "${CTX[random_mode]}" && -z "${CTX[style]}" ]]; then
     random_style
 fi
 
-if [[ -n "$STYLE" ]]; then
+if [[ -n "${CTX[style]}" ]]; then
     detect_environment
     choose_setter
-    check_style "$STYLE"
+    check_style "${CTX[style]}"
     validate_monitor
-    display_info
     main
 else
     usage
