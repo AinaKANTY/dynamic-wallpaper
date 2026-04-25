@@ -611,15 +611,24 @@ _setter_hyprpaper() {
         _close_lock_fd
         hyprpaper > /dev/null 2>&1 &
 
-        local max_attempts=20 # 20 attempts * 0.1s = 2 seconds max wait
+        local max_attempts=50 # 50 attempts * 0.1s = 5 seconds max wait
         local attempt=0
         while ! hyprctl hyprpaper listloaded >/dev/null 2>&1; do
+            if ! pgrep -x "hyprpaper" > /dev/null; then
+                printf "${RED}[!] hyprpaper daemon failed to start${WHITE}\n" >&2
+                exit 1
+            fi
             if (( attempt++ >= max_attempts )); then
                 printf "${RED}[!] Timed out waiting for hyprpaper daemon to start${WHITE}\n" >&2
                 exit 1
             fi
             sleep 0.1
         done
+    fi
+
+    if ! hyprctl hyprpaper preload "${img}" >/dev/null 2>&1; then
+        printf "${RED}[!] Failed to preload image: %s${WHITE}\n" "${img}" >&2
+        exit 1
     fi
 
     if [[ -n "${CTX[monitor]:-}" ]]; then
