@@ -43,25 +43,27 @@ reset_color() {
 }
 
 cleanup_lock() {
-    [[ -n "$DWALL_LOCK_FILE" && -f "$DWALL_LOCK_FILE" ]] && rm -f "$DWALL_LOCK_FILE"
-    local runtime_dir="${XDG_RUNTIME_DIR:-/tmp}"
-    rm -f "${runtime_dir}/dwall-swaybg.pid" "${runtime_dir}/dwall-wbg.pid" 2>/dev/null || true
+    if [[ -n "$DWALL_LOCK_FILE" && -f "$DWALL_LOCK_FILE" ]]; then
+        rm -f "$DWALL_LOCK_FILE" >/dev/null 2>&1 || true
+    fi
 }
 
-exit_on_signal_SIGINT() {
-    printf "${RED}\n\n%s\n\n" "[!] Program Interrupted." >&2
+die_on_signal() {
+    local sig_name="$1"
+    local exit_code="$2"
+    
     reset_color
-    exit 130
+    
+    printf "\n\n%s[!] Program Terminated (%s).%s\n\n" "$RED" "$sig_name" "$RESET" >&2
+    
+    exit "$exit_code"
 }
 
-exit_on_signal_SIGTERM() {
-    printf "${RED}\n\n%s\n\n" "[!] Program Terminated." >&2
-    reset_color
-    exit 143
-}
+trap 'die_on_signal "SIGINT" 130' SIGINT   # Ctrl+C
+trap 'die_on_signal "SIGQUIT" 131' SIGQUIT # Ctrl+\
+trap 'die_on_signal "SIGHUP" 129' SIGHUP   # Terminal Closing
+trap 'die_on_signal "SIGTERM" 143' SIGTERM # kill
 
-trap exit_on_signal_SIGINT SIGINT
-trap exit_on_signal_SIGTERM SIGTERM
 trap cleanup_lock EXIT
 
 ## ---------------------------------------------------------------------------
@@ -83,7 +85,10 @@ get_styles() {
 
 list_styles() {
     local styles
-    get_styles styles
+    if ! get_styles styles; then
+        printf "${ORANGE}(no styles found in %s)${WHITE}\n" "$DIR"
+        return 0
+    fi
     printf -- "${ORANGE}%s  " "${styles[@]}"
     printf -- "\n${WHITE}"
 }
@@ -137,7 +142,10 @@ remove_style() {
 
 random_style() {
     local styles
-    get_styles styles
+    if ! get_styles styles; then
+        printf "${RED}[!] No styles available to pick from (directory empty or missing: %s)${WHITE}\n" "$DIR" >&2
+        exit 1
+    fi
     CTX[style]=$(printf '%s\n' "${styles[@]}" | shuf -n 1)
     printf "${ORANGE}[*] Random style selected: ${MAGENTA}${CTX[style]}${WHITE}\n"
 }
@@ -149,8 +157,11 @@ check_style() {
     else
         printf "${RED}[!] Invalid style name : ${GREEN}${style}${WHITE}\n" >&2
         local styles
-        get_styles styles
-        printf "${RED}[!] Available styles are : ${ORANGE}${styles[*]}${WHITE}\n" >&2
+        if get_styles styles; then
+            printf "${RED}[!] Available styles are : ${ORANGE}${styles[*]}${WHITE}\n" >&2
+        else
+            printf "${ORANGE}[!] (No styles available in %s)${WHITE}\n" "$DIR" >&2
+        fi
         exit 1
     fi
 }
@@ -166,7 +177,7 @@ usage() {
 		${RED} ┃┃┗┳┛┃┗┫┣━┫┃┃┃┃┃     ${GREEN}┃╻┃┣━┫┃  ┃  ┣━┛┣━┫┣━┛┣╸ ┣┳┛
 		${RED}╺┻┛ ╹ ╹ ╹╹ ╹╹ ╹╹┗━╸   ${GREEN}┗┻┛╹ ╹┗━╸┗━╸╹  ╹ ╹╹  ┗━╸╹┗╸${WHITE}
 
-		Dwall V0.4.3 : Set wallpapers according to current time.
+		Dwall V0.5.0 : Set wallpapers according to current time.
 		Developed By : Aditya Shakya (@adi1090x) and forked by Aina KANTY (@AinaKANTY).
 
 		Usage : $(basename "$0") [OPTION...]
@@ -177,7 +188,7 @@ usage() {
 		   -p, --pywal	           Use pywal to set wallpaper instead of matugen
 		   -s, --style <style>	   Name of the style to apply
 		   -S, --setter <setter>   Force a specific wallpaper setter
-		   -m, --monitor <name>   * Target a specific monitor (ex: DP-1, eDP-1)
+		   -m, --monitor <name>    Target a specific monitor (ex: DP-1, eDP-1)
 		   -l, --list              List available styles
 		   -r, --random            Pick a random style
 
@@ -658,7 +669,7 @@ _setter_swaybg() {
         if [[ -f "$pid_file" ]]; then
             local old_pid; old_pid=$(cat "$pid_file")
             if kill -0 "$old_pid" 2>/dev/null; then
-                kill -9 "$old_pid" 2>/dev/null || true
+                kill "$old_pid" 2>/dev/null || true
             fi
         fi
 
@@ -684,7 +695,7 @@ _setter_wbg() {
     if [[ -f "$pid_file" ]]; then
         local old_pid; old_pid=$(cat "$pid_file")
         if kill -0 "$old_pid" 2>/dev/null; then
-            kill -9 "$old_pid" 2>/dev/null || true
+            kill "$old_pid" 2>/dev/null || true
         fi
     fi
 
@@ -786,14 +797,20 @@ apply_colors() {
 
     if [[ -n "${CTX[pywal]}" ]]; then
         if command -v wal >/dev/null 2>&1; then
-            wal -i "$image" -n
-            printf "${CYAN}[*] pywal colors applied. Run 'wal --theme' to reload terminal colors.${WHITE}\n"
+            if wal -i "$image" -n >/dev/null 2>&1; then
+                printf "${CYAN}[*] pywal colors applied. Run 'wal --theme' to reload terminal colors.${WHITE}\n"
+            else
+                printf "${ORANGE}[!] pywal failed to generate colors (check your config/setup).${WHITE}\n" >&2
+            fi
         else
             printf "${RED}[!] pywal (wal) is not installed, but -p was passed.${WHITE}\n" >&2
         fi
     elif command -v matugen >/dev/null 2>&1; then
-        matugen image "$image" > /dev/null 2>&1
-        printf "${CYAN}[*] matugen colors applied.${WHITE}\n"
+        if matugen image "$image" >/dev/null 2>&1; then
+            printf "${CYAN}[*] matugen colors applied.${WHITE}\n"
+        else
+            printf "${ORANGE}[!] matugen failed to generate colors (check your matugen config).${WHITE}\n" >&2
+        fi
     else
         printf "${ORANGE}[*] No default color generator (matugen) found. Skipping colors.${WHITE}\n"
     fi

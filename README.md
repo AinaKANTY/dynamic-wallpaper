@@ -16,15 +16,11 @@
 
 - **Wallpaper setter**: Automatically detected based on your environment.
 - **Multi-environment**: Automatically detects and supports your DE/WM.
+- **Target specific monitors**: Apply a wallpaper to a specific screen using the `--monitor` flag (supports Hyprland, Sway, KDE, and XFCE).
 - **Smart Time Fallback**: If an image for the current hour is missing, `dwall` automatically falls back to the previous available hour. You don't need exactly 24 images!
 - **Multi-Format Auto-detection**: Seamlessly searches for `.jpg`, `.jpeg`, `.png`, `.webp`, and `.gif` formats simultaneously.
-- **Dynamic Theming**: Supports **Matugen** and **Pywal** for automatic color scheme generation (optional).
+- **Dynamic Theming**: Supports **Matugen** (default) and **Pywal** (via `-p` flag) for automatic color scheme generation (optional).
 - **Scheduler**: Compatible with **Systemd Timers** and **Cronie**.
-
-#### Roadmap (TODO)
-
-- [ ] **Multi-monitor support** — Set a different wallpaper per screen
-- [ ] **Weather-aware wallpapers** — Detect current weather and location to automatically overlay
 
 ### Supported Environments
 
@@ -48,14 +44,13 @@
 ![matugen](https://img.shields.io/badge/matugen-supported-8b5cf6?style=flat-square)
 ![pywal](https://img.shields.io/badge/pywal-supported-8b5cf6?style=flat-square)
 
-The script uses Matugen by default if installed, and falls back to Pywal if Matugen does not exist.
+The script uses **Matugen** by default if installed. If you prefer to use **Pywal**, you can force it by passing the `-p` or `--pywal` flag.
 
-### Requirement
+### Dependencies
 
-- **`bash` 4.0.+**
 - **`systemd`** or **`cronie`**: For the hourly timer.
 - **Wallpaper Setters** (install at least one based on your environment if not using a full DE):
-  - *Wayland*: `awww`, `hyprpaper`, `swaybg`, `wpaperd`, or `wbg`.
+  - *Wayland*: `awww`, `hyprpaper`, `swaybg`, or `wbg`. *(Note: `wpaperd` is not supported).*
   - *X11*: `feh`, `nitrogen`, `hsetroot`, or `xwallpaper`.
   - *DEs*: their built-in native tools.
 - **`matugen`**: For Material You dynamic colors (optional).
@@ -169,7 +164,7 @@ general {
 
 1. Download a wallpaper set you like.
 2. Rename the wallpapers to match the hours of the day: `0` to `23` (e.g., `0.jpg` for midnight, `12.png` for noon). 
-   > **Note:** Thanks to the **Smart Fallback** feature, you don't need exactly 24 images! If you only have images for `6`, `12`, and `18`, the script will automatically keep showing `6.jpg` until `12:00`. No need to create symlinks!
+   > **Note:** Thanks to the **Smart Fallback** feature, you don't need exactly 24 images! If you only have images for `6`, `12`, and `18`, the script will automatically keep showing `6.jpg` until it hits `12:00`.
 3. Make a new directory in `/usr/share/dynamic-wallpaper/images/` (e.g., `mystyle`) and copy your images into it.
 4. Run the program to test: `dwall -s mystyle`.
 
@@ -179,7 +174,7 @@ general {
 
 ### Use HEIC Images
 
-You may also want to use wallpapers from [Dynamic Wallpaper Club](https://dynamicwallpaper.club/). To do so, you need to convert `.heic` image file to either png or jpg format. Download a `.heic` wallpaper file you like and follow the steps below to convert images.
+You may also want to use wallpapers from [Dynamic Wallpaper Club](https://dynamicwallpaper.club/). To do so, you need to convert `.heic` image file to either png or jpg format. Download a `.heic` format dynamic wallpaper and extract it.
 
 - First install `heif-convert` on your system - 
 ```bash
