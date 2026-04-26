@@ -27,15 +27,6 @@ _init_colors() {
     fi
 }
 
-_init_colors
-
-_info()  { printf '%s[*] %s%s\n'   "$ORANGE" "$*" "$WHITE"; }
-_ok()    { printf '%s[*] %s%s\n'   "$GREEN"  "$*" "$WHITE"; }
-_detail(){ printf '%s[*] %s%s\n'   "$BLUE"   "$*" "$WHITE"; }
-_cyan()  { printf '%s[*] %s%s\n'   "$CYAN"   "$*" "$WHITE"; }
-_warn()  { printf '%s[!] %s%s\n'   "$ORANGE" "$*" "$WHITE" >&2; }
-_err()   { printf '%s[!] %s%s\n'   "$RED"    "$*" "$WHITE" >&2; }
-
 ## ---------------------------------------------------------------------------
 ## Config
 ## ---------------------------------------------------------------------------
@@ -45,14 +36,6 @@ DIR="${DWALL_DIR:-/usr/share/dynamic-wallpaper/images}"
 
 ## Lock file path — assigned in entry point after detect_environment() sets XDG_RUNTIME_DIR
 DWALL_LOCK_FILE=""
-
-## Timeout constants for daemon startup polling
-## awww-daemon: 10 attempts × 0.3 s = 3 s max (fast start expected)
-readonly _AWWW_MAX_ATTEMPTS=10
-readonly _AWWW_SLEEP=0.3
-## hyprpaper:  100 attempts × 0.1 s = 10 s max (IPC socket init is slower)
-readonly _HYPRPAPER_MAX_ATTEMPTS=100
-readonly _HYPRPAPER_SLEEP=0.1
 
 declare -A CTX=(
     [env]=""
@@ -112,9 +95,9 @@ get_styles() {
 list_styles() {
     local styles
     get_styles styles
-    printf '%s' "$ORANGE"
+    printf '%s' "$(_c "$ORANGE")"
     printf '%s  ' "${styles[@]}"
-    printf '\n%s\n' "$WHITE"
+    printf '\n%s\n' "$(_c "$WHITE")"
 }
 
 remove_style() {
@@ -188,13 +171,13 @@ check_style() {
 ## ---------------------------------------------------------------------------
 
 usage() {
-    [[ -t 1 ]] && clear
+    clear
     cat <<- EOF
 		${RED}╺┳┓╻ ╻┏┓╻┏━┓┏┳┓╻┏━╸   ${GREEN}╻ ╻┏━┓╻  ╻  ┏━┓┏━┓┏━┓┏━╸┏━┓
 		${RED} ┃┃┗┳┛┃┗┫┣━┫┃┃┃┃┃     ${GREEN}┃╻┃┣━┫┃  ┃  ┣━┛┣━┫┣━┛┣╸ ┣┳┛
 		${RED}╺┻┛ ╹ ╹ ╹╹ ╹╹ ╹╹┗━╸   ${GREEN}┗┻┛╹ ╹┗━╸┗━╸╹  ╹ ╹╹  ┗━╸╹┗╸${WHITE}
 
-		Dwall V0.5.1 : Set wallpapers according to current time.
+		Dwall V0.5.0 : Set wallpapers according to current time.
 		Developed By : Aditya Shakya (@adi1090x) and forked by Aina KANTY (@AinaKANTY).
 
 		Usage : $(basename "$0") [OPTION...]
@@ -275,7 +258,6 @@ _DE_RULES=(
     'LXDE:lxde'
     'LXQt:lxqt'
     'ENLIGHTENMENT:enlightenment'
-    
     ## DESKTOP_SESSION
     'gnome:gnome'
     'ubuntu:gnome'
@@ -313,14 +295,7 @@ _resolve_de() {
 }
 
 ## ---------------------------------------------------------------------------
-## JSON name extraction
-##
-## Preferred: python3 (handles any valid JSON formatting, including compact).
-## Fallback:  if python3 is absent, exit with a clear error rather than
-##            silently producing wrong results from a broken awk heuristic.
-##            The awk regex approach fails on compact JSON (no spaces around
-##            ':') and on multi-value objects — it gives a false sense of
-##            safety while being unreliable in practice.
+## JSON name extraction — python3 fallback (more robust than awk)
 ## ---------------------------------------------------------------------------
 
 _json_extract_names() {
@@ -367,7 +342,7 @@ detect_environment() {
 
         if [[ -z "${WAYLAND_DISPLAY:-}" ]]; then
             local wld
-            wld=$(find "${XDG_RUNTIME_DIR}" -maxdepth 1 \
+            wld=$(find /run/user/"$(id -u)" -maxdepth 1 \
                   -name 'wayland-[0-9]*' -not -name '*.lock' \
                   -printf "%T@ %f\n" 2>/dev/null \
                 | sort -n | tail -n 1 | cut -d' ' -f2 || true)
@@ -535,9 +510,7 @@ get_img() {
         done
     done
 
-
     _err "Error: No image found for style '${CTX[style]}' in $DIR/${CTX[style]}/"
-    _err "Expected files named 0.png … 23.png (or .jpg/.jpeg/.webp/.gif)."
     exit 1
 }
 
@@ -638,12 +611,12 @@ _setter_awww() {
 
         local i=0
         until awww query >/dev/null 2>&1; do
-            if (( i >= _AWWW_MAX_ATTEMPTS )); then
-                _err "awww-daemon failed to start after ${_AWWW_MAX_ATTEMPTS} attempts (${_AWWW_SLEEP}s each)"
+            if (( i >= 10 )); then
+                _err "awww-daemon failed to start"
                 exit 1
             fi
             i=$(( i + 1 ))
-            sleep "$_AWWW_SLEEP" || true
+            sleep 0.3 || true
         done
     fi
 
@@ -662,21 +635,19 @@ _setter_hyprpaper() {
         _close_lock_fd
         hyprpaper > /dev/null 2>&1 &
 
+        local max_attempts=100
         local attempt=0
-        local hyprpaper_sock
-        until hyprpaper_sock=$(find "${XDG_RUNTIME_DIR}" -maxdepth 1 \
-                -name 'hyprpaper.sock*' -print -quit 2>/dev/null) \
-              && [[ -n "$hyprpaper_sock" ]]; do
+        while ! hyprctl hyprpaper listloaded >/dev/null 2>&1; do
             if ! pgrep -x "hyprpaper" > /dev/null; then
                 _err "hyprpaper daemon failed to start"
                 exit 1
             fi
-            if (( attempt >= _HYPRPAPER_MAX_ATTEMPTS )); then
-                _err "Timed out waiting for hyprpaper socket (${_HYPRPAPER_MAX_ATTEMPTS} × ${_HYPRPAPER_SLEEP}s)"
+            if (( attempt >= max_attempts )); then
+                _err "Timed out waiting for hyprpaper daemon to start"
                 exit 1
             fi
             attempt=$(( attempt + 1 ))
-            sleep "$_HYPRPAPER_SLEEP"
+            sleep 0.1
         done
     fi
 
@@ -724,14 +695,10 @@ _setter_swaybg() {
         local target="${CTX[monitor]:-*}"
         swaymsg output "$target" bg "$img" fill >/dev/null 2>&1
     else
-        if [[ -n "${CTX[monitor]}" ]]; then
-            _warn "swaybg in non-Sway mode does not support --monitor; applying wallpaper globally."
-        fi
-
         if [[ -f "$pid_file" ]]; then
             local old_pid
             old_pid=$(cat "$pid_file")
-            if [[ "$old_pid" =~ ^[0-9]+$ ]] && kill -0 "$old_pid" 2>/dev/null; then
+            if kill -0 "$old_pid" 2>/dev/null; then
                 kill "$old_pid" 2>/dev/null || true
             fi
         fi
@@ -758,7 +725,7 @@ _setter_wbg() {
     if [[ -f "$pid_file" ]]; then
         local old_pid
         old_pid=$(cat "$pid_file")
-        if [[ "$old_pid" =~ ^[0-9]+$ ]] && kill -0 "$old_pid" 2>/dev/null; then
+        if kill -0 "$old_pid" 2>/dev/null; then
             kill "$old_pid" 2>/dev/null || true
         fi
     fi
@@ -853,12 +820,8 @@ update_cache() {
 
     [[ ! -d "$cache_dir" ]] && mkdir -p "$cache_dir"
     if printf '%s\n' "$1" > "${cfile}.tmp"; then
-        mv "${cfile}.tmp" "$cfile" || {
-            rm -f "${cfile}.tmp" 2>/dev/null || true
-            _err "Failed to move cache file into place"
-        }
+        mv "${cfile}.tmp" "$cfile" || _err "Failed to move cache file into place"
     else
-        rm -f "${cfile}.tmp" 2>/dev/null || true
         _err "Failed to write cache"
     fi
 }

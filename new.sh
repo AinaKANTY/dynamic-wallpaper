@@ -16,9 +16,15 @@ set -euo pipefail
 ## ANSI color helpers — emit codes only when the relevant fd is a real terminal
 ## ---------------------------------------------------------------------------
 
+## Colors are initialized empty; _init_colors fills them if both stdout and
+## stderr are real terminals. This prevents ANSI escape codes leaking into
+## logs, pipes, or systemd journal entries.
 RED="" GREEN="" ORANGE="" BLUE="" MAGENTA="" CYAN="" WHITE="" RESET=""
 
 _init_colors() {
+    ## Check stdout (fd 1) for info/ok/detail messages,
+    ## and stderr (fd 2) for warn/err messages.
+    ## Only enable colors when both fds are real terminals and TERM is usable.
     if [[ -n "${TERM:-}" && "${TERM:-}" != "dumb" && -t 1 && -t 2 ]]; then
         RED=$'\033[31m'     GREEN=$'\033[32m'
         ORANGE=$'\033[33m'  BLUE=$'\033[34m'
@@ -43,7 +49,9 @@ _err()   { printf '%s[!] %s%s\n'   "$RED"    "$*" "$WHITE" >&2; }
 ## Wallpaper directory
 DIR="${DWALL_DIR:-/usr/share/dynamic-wallpaper/images}"
 
-## Lock file path — assigned in entry point after detect_environment() sets XDG_RUNTIME_DIR
+## Lock file path — assigned in entry point after detect_environment() sets
+## XDG_RUNTIME_DIR. Intentionally empty until that point; cleanup_lock()
+## guards against the empty case so the EXIT trap is always safe to register.
 DWALL_LOCK_FILE=""
 
 ## Timeout constants for daemon startup polling
@@ -71,12 +79,14 @@ reset_color() {
     [[ -n "$RESET" ]] && printf '%s' "$RESET"
 }
 
+# shellcheck disable=SC2317  # Functions invoked via trap; shellcheck can't trace that path
 cleanup_lock() {
     if [[ -n "$DWALL_LOCK_FILE" && -f "$DWALL_LOCK_FILE" ]]; then
         rm -f "$DWALL_LOCK_FILE" >/dev/null 2>&1 || true
     fi
 }
 
+# shellcheck disable=SC2317  # Invoked via trap; shellcheck can't trace that path
 die_on_signal() {
     local sig_name="$1"
     local exit_code="$2"
@@ -129,6 +139,9 @@ remove_style() {
     target=$(realpath -m "$DIR/$style")
     base=$(realpath -m "$DIR")
 
+    ## Guard against path traversal (e.g. style="../../etc").
+    ## realpath -m resolves without requiring the path to exist,
+    ## so this check is reliable even for not-yet-created paths.
     if [[ "$target" != "$base/"* ]]; then
         _err "Invalid style path: $style"
         exit 1
@@ -194,7 +207,7 @@ usage() {
 		${RED} ┃┃┗┳┛┃┗┫┣━┫┃┃┃┃┃     ${GREEN}┃╻┃┣━┫┃  ┃  ┣━┛┣━┫┣━┛┣╸ ┣┳┛
 		${RED}╺┻┛ ╹ ╹ ╹╹ ╹╹ ╹╹┗━╸   ${GREEN}┗┻┛╹ ╹┗━╸┗━╸╹  ╹ ╹╹  ┗━╸╹┗╸${WHITE}
 
-		Dwall V0.5.1 : Set wallpapers according to current time.
+		Dwall V0.5.0 : Set wallpapers according to current time.
 		Developed By : Aditya Shakya (@adi1090x) and forked by Aina KANTY (@AinaKANTY).
 
 		Usage : $(basename "$0") [OPTION...]
@@ -205,7 +218,7 @@ usage() {
 		   -p, --pywal	           Use pywal to set wallpaper instead of matugen
 		   -s, --style <style>	   Name of the style to apply
 		   -S, --setter <setter>   Force a specific wallpaper setter
-		   -m, --monitor <name>    Target a specific monitor (ex: DP-1, eDP-1)
+		   -m, --monitor <n>    Target a specific monitor (ex: DP-1, eDP-1)
 		   -l, --list              List available styles
 		   -r, --random            Pick a random style
 
@@ -275,7 +288,6 @@ _DE_RULES=(
     'LXDE:lxde'
     'LXQt:lxqt'
     'ENLIGHTENMENT:enlightenment'
-    
     ## DESKTOP_SESSION
     'gnome:gnome'
     'ubuntu:gnome'
@@ -305,6 +317,7 @@ _resolve_de() {
         pattern="${rule%%:*}"
         result="${rule##*:}"
 
+        # shellcheck disable=SC2254  # Unquoted $pattern is intentional: enables glob matching (e.g. '*GNOME')
         case "$key" in
             $pattern) printf '%s' "$result"; return 0 ;;
         esac
@@ -339,13 +352,9 @@ except Exception:
     pass
 '
     else
-        awk -F'"' '
-            /"name"[[:space:]]*:/ {
-                for (i = 1; i <= NF; i++) {
-                    if ($i == "name") { print $(i+2); break }
-                }
-            }
-        '
+        _err "python3 is required for JSON parsing but was not found."
+        _err "Please install python3 or install jq for monitor validation."
+        return 1
     fi
 }
 
@@ -433,6 +442,9 @@ choose_setter() {
         exit 1
     fi
 
+    ## Word splitting is intentional here: SETTER_PRIORITY values are
+    ## space-separated setter names (e.g. "hyprpaper awww swaybg wbg").
+    ## Setter names never contain spaces, so this is safe.
     local wall_setter
     for wall_setter in ${SETTER_PRIORITY[${CTX[env]}]:-}; do
         if command -v "$wall_setter" >/dev/null 2>&1; then
@@ -512,17 +524,17 @@ validate_monitor() {
 
 ## ---------------------------------------------------------------------------
 ## Image resolution (smart time fallback — walk back up to 24 h)
+##
+## Only image files are considered valid. An empty-directory check that
+## matches any file type would pass for a style containing only dotfiles or
+## subdirectories, then fail later with a confusing "no image found" error.
+## We skip that intermediate check and let the loop produce the right error.
 ## ---------------------------------------------------------------------------
 
 get_img() {
     local target_hour="$1"
     local formats=("png" "jpg" "jpeg" "webp" "gif")
     local h i img
-
-    if ! find "$DIR/${CTX[style]}" -mindepth 1 -print -quit 2>/dev/null | grep -q .; then
-        _err "Error: Style directory '${CTX[style]}' is empty or missing."
-        exit 1
-    fi
 
     for (( i=0; i<24; i++ )); do
         h=$(( (target_hour - i + 24) % 24 ))
@@ -535,8 +547,7 @@ get_img() {
         done
     done
 
-
-    _err "Error: No image found for style '${CTX[style]}' in $DIR/${CTX[style]}/"
+    _err "No image found for style '${CTX[style]}' in $DIR/${CTX[style]}/"
     _err "Expected files named 0.png … 23.png (or .jpg/.jpeg/.webp/.gif)."
     exit 1
 }
@@ -662,6 +673,10 @@ _setter_hyprpaper() {
         _close_lock_fd
         hyprpaper > /dev/null 2>&1 &
 
+        ## Wait for the hyprpaper socket to appear in XDG_RUNTIME_DIR,
+        ## not for an IPC command to succeed — the socket is the correct
+        ## readiness signal, as IPC commands can fail for unrelated reasons
+        ## before the socket is created.
         local attempt=0
         local hyprpaper_sock
         until hyprpaper_sock=$(find "${XDG_RUNTIME_DIR}" -maxdepth 1 \
@@ -679,6 +694,14 @@ _setter_hyprpaper() {
             sleep "$_HYPRPAPER_SLEEP"
         done
     fi
+
+    ## hyprpaper IPC protocol requires preload before wallpaper.
+    ## preload caches the image; wallpaper then applies it.
+    ## We do not treat preload failure as fatal: hyprpaper returns an error
+    ## if the image is already preloaded, which is a valid state (e.g. same
+    ## wallpaper across two scheduler runs). Let wallpaper fail explicitly
+    ## if the image was genuinely not loaded.
+    hyprctl hyprpaper preload "$img" >/dev/null 2>&1 || true
 
     if [[ -n "${CTX[monitor]:-}" ]]; then
         if ! hyprctl hyprpaper wallpaper "${CTX[monitor]},${img}"; then
@@ -724,6 +747,9 @@ _setter_swaybg() {
         local target="${CTX[monitor]:-*}"
         swaymsg output "$target" bg "$img" fill >/dev/null 2>&1
     else
+        ## In non-Sway Wayland environments, swaybg is launched as a background
+        ## process covering all outputs. The -o flag only exists via swaymsg,
+        ## which is Sway-specific. Warn if the user requested a specific monitor.
         if [[ -n "${CTX[monitor]}" ]]; then
             _warn "swaybg in non-Sway mode does not support --monitor; applying wallpaper globally."
         fi
@@ -852,6 +878,8 @@ update_cache() {
     local cfile="$cache_dir/current"
 
     [[ ! -d "$cache_dir" ]] && mkdir -p "$cache_dir"
+    ## Write to a temp file then atomically rename. This prevents readers
+    ## from seeing a partial write. mv(1) on the same filesystem is atomic.
     if printf '%s\n' "$1" > "${cfile}.tmp"; then
         mv "${cfile}.tmp" "$cfile" || {
             rm -f "${cfile}.tmp" 2>/dev/null || true
