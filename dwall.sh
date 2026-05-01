@@ -194,7 +194,7 @@ usage() {
 		${RED} ┃┃┗┳┛┃┗┫┣━┫┃┃┃┃┃     ${GREEN}┃╻┃┣━┫┃  ┃  ┣━┛┣━┫┣━┛┣╸ ┣┳┛
 		${RED}╺┻┛ ╹ ╹ ╹╹ ╹╹ ╹╹┗━╸   ${GREEN}┗┻┛╹ ╹┗━╸┗━╸╹  ╹ ╹╹  ┗━╸╹┗╸${WHITE}
 
-		Dwall V0.5.1 : Set wallpapers according to current time.
+		Dwall V0.5.2 : Set wallpapers according to current time.
 		Developed By : Aditya Shakya (@adi1090x) and forked by Aina KANTY (@AinaKANTY).
 
 		Usage : $(basename "$0") [OPTION...]

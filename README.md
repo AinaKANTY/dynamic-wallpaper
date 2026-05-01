@@ -114,6 +114,7 @@ Description=Dynamic Wallpaper Timer
 [Timer]
 OnCalendar=hourly
 Persistent=true
+Unit=dwall@lakeside.service
 
 [Install]
 WantedBy=timers.target
@@ -121,7 +122,8 @@ WantedBy=timers.target
 
 3. **Enable**:
 ```bash
-systemctl --user enable --now dwall@<style>.timer # replace <style> by yours
+systemctl --user enable --now dwall.timer
+systemctl --user start dwall@<style>.service # replace <style> by yours
 ```
 
 #### Cronie
@@ -141,7 +143,7 @@ systemctl status cronie
 
 3. **Get your environment variables**:
 ```bash
-env | grep -E '^(SHELL|DISPLAY|WAYLAND_DISPLAY|XDG_SESSION_TYPE|XDG_CURRENT_DESKTOP|DESKTOP_SESSION|DBUS_SESSION_BUS_ADDRESS|XDG_RUNTIME_DIR|HYPRLAND_INSTANCE_SIGNATURE|SWAYSOCK)='
+env | grep -E '^(SHELL|DISPLAY|WAYLAND_DISPLAY|XDG_SESSION_TYPE|XDG_CURRENT_DESKTOP|DESKTOP_SESSION|DBUS_SESSION_BUS_ADDRESS|XDG_RUNTIME_DIR|HYPRLAND_INSTANCE_SIGNATURE|SWAYSOCK|NIRI_SOCKET|WAYFIRE_SOCKET|COSMIC_SESSION)='
 ```
 
 4. **Open crontab and add your values**:
@@ -150,37 +152,20 @@ crontab -e
 ```
 
 ```bash
-# Replace variables and style with your own values
-0 * * * * DISPLAY=:0 WAYLAND_DISPLAY=wayland-1 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus /usr/bin/dwall -s beach
+# Replace <value> and <style> with your own values
+# X11
+0 * * * * DISPLAY=:0 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus /usr/bin/dwall -s <style>
+
+# Wayland — Hyprland (replaces the value of HYPRLAND_INSTANCE_SIGNATURE with the one obtained in step 3)
+0 * * * * XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-1 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus HYPRLAND_INSTANCE_SIGNATURE=<value> /usr/bin/dwall -s <style>
+
+# Wayland — Sway
+0 * * * * XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-1 SWAYSOCK=<value> /usr/bin/dwall -s <style>
 ```
 
 5. **Verify** the cron job is registered:
 ```bash
 crontab -l
-```
-
-### Integration with Matugen
- 
-To make your window borders and UI match the wallpaper automatically with **Matugen**:
-
-1. **Update your Hyprland config**: Add this line to your `~/.config/hypr/hyprland.conf`:
-```ini
-source = ~/.config/hypr/colors.conf
-```
-
-2. **Configure Matugen output**: Create `~/.config/matugen/config.toml`:
-```ini
-[config.outputs.hyprland]
-path = "~/.config/hypr/colors.conf"
-template = "hyprland.desktop"
-```
-
-3. **Use the variables:**
-```ini
-general {
-    col.active_border = $primary
-    col.inactive_border = $surface_variant
-}
 ```
 
 ### How to add own wallpapers
